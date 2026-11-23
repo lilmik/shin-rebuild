@@ -13,3 +13,7 @@ A source publication is not a completed license review for distributing every po
 ## Author-provided artwork
 
 `docs/images/living-room.png` was created and supplied by lilmik for this project. It is not extracted original-game artwork. See `docs/images/NOTICE.md` for the separate artwork notice; the code license does not automatically apply to it.
+
+## Historical edition reference images
+
+`docs/images/editions/` contains packaging/disc reference photographs extracted from the owner-provided project document. These are distinct from the author-created living-room artwork. Existing watermarks are retained. They are not covered by the code license; see `docs/images/editions/NOTICE.md`.
