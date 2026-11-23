@@ -7,7 +7,7 @@ MenuFrame MainMenu::update(std::uint32_t now,MenuInput in){
   ++variant_;frame_=0;
   if(variant_>=4){out.audio.push_back("resource/_1.wav");out.audio.push_back("resource/_2.wav");out.audio.push_back("resource/_3.wav");}
  }
- if(std::uint32_t(now-music_)>165000){out.audio.push_back("play_cdaudio_2_to_3");music_=now;}
+ if(std::uint32_t(now-music_)>165000){out.audio.push_back("restart_cdaudio_2_to_3");music_=now;}
  static const char* chars[]={"tt0000.app","tt0003.app","tt0004.app","tt0011.app","tt0021.app","tt0022.app","tt0031.app","tt0032.app","tt0041.app","tt0042.app"};
  static const int sequence[5][3]={{0,1,2},{2,3,0},{4,5,0},{6,7,0},{8,9,0}};
  int set=variant_<4?variant_:4;

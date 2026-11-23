@@ -4,6 +4,7 @@
 #include "core/update_clock.hpp"
 #include "core/loading_task.hpp"
 #include "game/menu.hpp"
+#include "game/menu_audio.hpp"
 #include "game/startup_sequence.hpp"
 #include "game/bootstrap_preload.hpp"
 #include "game/stage_select.hpp"
@@ -109,7 +110,7 @@ int main(int argc,char** argv){
    scene=page==shin::SettingsMenu::speed_mode?"speed_mode":page==shin::SettingsMenu::scroll_mode?"scroll_mode":"speed_slider";
    settings=std::make_unique<shin::SettingsMenu>(page,speed);
    scheduler.create(5,[&](shin::Scheduler::Node& self){
-    auto f=settings->update({pressed(0x46d4b0),pressed(0x46d4b4),pressed(0x46d4b8),pressed(0x46d4bc),pressed(0x46d4ec),pressed(0x46d4f0)},speed,scrolling_mode);render(f.draws);
+    auto f=settings->update({pressed(0x46d4b0),pressed(0x46d4b4),pressed(0x46d4b8),pressed(0x46d4bc),pressed(0x46d4ec),pressed(0x46d4f0)},speed,scrolling_mode);render(f.draws);if(f.stop_cd)audio.stop_music();
     if(f.action==shin::SettingsFrame::main_menu){self.state=2;show_menu();}
     else if(f.action==shin::SettingsFrame::option_menu){self.state=2;show_options();}
     else if(f.action==shin::SettingsFrame::manual_speed){self.state=2;show_settings(shin::SettingsMenu::speed_slider);}
@@ -140,7 +141,7 @@ int main(int argc,char** argv){
   show_options=[&]{
    scene="options";options=std::make_unique<shin::OptionMenu>();
    scheduler.create(5,[&](shin::Scheduler::Node& self){
-    auto f=options->update({pressed(0x46d4b0),pressed(0x46d4b4),pressed(0x46d4ec),pressed(0x46d4f0)});render(f.draws);
+    auto f=options->update({pressed(0x46d4b0),pressed(0x46d4b4),pressed(0x46d4ec),pressed(0x46d4f0)});render(f.draws);if(f.stop_cd)audio.stop_music();
     if(f.action==shin::OptionAction::main_menu){self.state=2;show_menu();}
     else if(f.action!=shin::OptionAction::none){self.state=2;show_settings(f.action==shin::OptionAction::choice_zero_callback_42f9a0?shin::SettingsMenu::speed_mode:shin::SettingsMenu::scroll_mode);}
    });
@@ -152,6 +153,8 @@ int main(int argc,char** argv){
     auto& keys=input();
     auto draw=menu->update(now_ms(),{bool(keys.read(0x46d4b0)),bool(keys.read(0x46d4b4)),bool(keys.read(0x46d4ec))});
     render(draw.draws);
+    shin::dispatch_menu_audio(draw,[&](unsigned t,bool restart){audio.play_track(t,restart);},[&]{audio.stop_music();},[&](const std::string&file){audio.play_wav(file);});
+    shin::stop_menu_idle_audio(draw,[&](const std::string&file){audio.stop(file);});
     if(draw.action==shin::MenuAction::quit)quit=true;
     else if(draw.action==shin::MenuAction::start_game){self.state=2;show_select();}
     else if(draw.action==shin::MenuAction::options){self.state=2;show_options();}

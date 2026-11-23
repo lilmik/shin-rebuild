@@ -2,6 +2,7 @@
   "license": "GPL-3.0-only",
   "original_game_assets_included": false,
   "author_artwork_included": true,
-  "source_version": "0.3.6",
-  "status": "source synchronized; platform binaries excluded"
+  "source_version": "0.3.7",
+  "status": "source synchronized; platform binaries excluded",
+  "developer_tools_included": true
 }

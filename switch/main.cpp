@@ -12,6 +12,7 @@
 #include "game/stage_intro.hpp"
 #include "game/stage_select.hpp"
 #include "game/menu.hpp"
+#include "game/menu_audio.hpp"
 #include "game/startup_sequence.hpp"
 #include "game/bootstrap_preload.hpp"
 #include "game/options.hpp"
@@ -38,8 +39,8 @@ public:
 #include "platform/sound_bindings.inc"
  };auto i=names.find(id);if(i==names.end())throw std::runtime_error("Unbound sound");sound(i->second,false,id);return 1;}
  void stop_file(std::string name){for(int ch:file_channels_[key(name)])if(ch>=0&&Mix_GetChunk(ch)==chunks_[key(name)])Mix_HaltChannel(ch);file_channels_[key(name)].clear();}
- void prepare_music(unsigned track){
-  if((track==track_&&music_)||(track==prepared_track_&&prepared_music_))return;
+ void prepare_music(unsigned track,bool force=false){
+  if(!force&&((track==track_&&music_)||(track==prepared_track_&&prepared_music_)))return;
   if(prepared_music_){Mix_FreeMusic(prepared_music_);prepared_music_=nullptr;}prepared_track_=0;
   char file[32];snprintf(file,sizeof(file),"bgm/%02u.flac",track-1);auto i=files_.find(file);
   if(i==files_.end()){snprintf(file,sizeof(file),"bgm/%02u.wav",track-1);i=files_.find(file);}
@@ -50,8 +51,8 @@ public:
   if(!next)throw std::runtime_error(std::string("Music preparation failed: ")+Mix_GetError());
   prepared_music_=next;prepared_track_=track;
  }
- void music(unsigned track){
-  if(track==track_&&music_)return;prepare_music(track);auto*next=prepared_music_;
+ void music(unsigned track,bool restart=false){
+  if(track==track_&&music_&&!restart)return;prepare_music(track,restart);auto*next=prepared_music_;
   if(Mix_PlayMusic(next,-1))throw std::runtime_error(Mix_GetError());
   auto*previous=music_;music_=next;track_=track;prepared_music_=nullptr;prepared_track_=0;if(previous)Mix_FreeMusic(previous);
  }
@@ -64,7 +65,7 @@ static void startup_log(const char* phase,const char* detail="") noexcept{
 }
 int main(){
  SDL_Window*w=nullptr;SDL_Renderer*r=nullptr;
- startup_log("=== SHIN 0.3.6 startup ===");
+ startup_log("=== SHIN 0.3.7 startup ===");
  try{
  startup_log("romfs_begin");Result mount=romfsInit();if(R_FAILED(mount)){char msg[64];snprintf(msg,sizeof(msg),"romfsInit result=%08x",unsigned(mount));throw std::runtime_error(msg);}
  startup_log("romfs_ready");if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_GAMECONTROLLER)!=0)throw std::runtime_error(SDL_GetError());
@@ -97,9 +98,9 @@ int main(){
  unsigned updates=update_clock.due(elapsed_ns,gameplay&&speed.speed_value!=16?std::int64_t(std::clamp(speed.speed_value,1,209))*1000000:shin::UpdateClock::display_ns);
  for(unsigned update=0;update<updates&&!quit;++update){
  if(starting){static unsigned warmup=0;if(warmup==0)startup_log("splash_first_frame");shin::preload_bootstrap(assets,warmup++);auto f=splash.update();if(f.palette_phase>=0)palette=assets.palette(f.palette_phase?"rw.pal":"ss.pal");if(f.transition){starting=false;startup_log("splash_complete");back_menu();}else frame.blit(assets.image(f.image_phase?"rw.app":"ss.app"),0,0,false);}
- else if(main_menu){auto f=menu.update(SDL_GetTicks(),{up,down,enter});draw(f.draws);for(auto&a:f.audio)if(a.find("resource/")==0)audio.sound(a);if(f.action==shin::MenuAction::start_game){main_menu=false;selecting=true;select=shin::StageSelect(progress.stages,progress.bonus);palette=assets.palette("shin.pal");audio.music(3);}else if(f.action==shin::MenuAction::options){main_menu=false;option_menu=true;options=shin::OptionMenu();}else if(f.action==shin::MenuAction::quit)quit=true;}
- else if(option_menu){auto f=options.update({up,down,enter,escape});draw(f.draws);if(f.action==shin::OptionAction::main_menu)back_menu();else if(f.action!=shin::OptionAction::none){option_menu=false;settings=std::make_unique<shin::SettingsMenu>(f.action==shin::OptionAction::choice_zero_callback_42f9a0?shin::SettingsMenu::speed_mode:shin::SettingsMenu::scroll_mode,speed);}}
- else if(settings){auto f=settings->update({up,down,bool(input.read(0x46d4b8)),bool(input.read(0x46d4bc)),enter,escape},speed,scrolling);draw(f.draws);if(f.action==shin::SettingsFrame::manual_speed)settings=std::make_unique<shin::SettingsMenu>(shin::SettingsMenu::speed_slider,speed);else if(f.action==shin::SettingsFrame::option_menu){settings.reset();option_menu=true;options=shin::OptionMenu();}else if(f.action==shin::SettingsFrame::main_menu)back_menu();else if(f.action==shin::SettingsFrame::benchmark_auto||f.action==shin::SettingsFrame::benchmark_manual){unsigned began_calibration=SDL_GetTicks();for(int pass=0;pass<10;++pass)frame.blit(assets.image("tt0001.app"),0,0,true);shin::SettingsMenu::complete_calibration(speed,SDL_GetTicks()-began_calibration,f.action==shin::SettingsFrame::benchmark_auto);back_menu();}}
+ else if(main_menu){auto f=menu.update(SDL_GetTicks(),{up,down,enter});draw(f.draws);shin::dispatch_menu_audio(f,[&](unsigned t,bool restart){audio.music(t,restart);},[&]{audio.stop_music();},[&](const std::string&file){audio.sound(file);});shin::stop_menu_idle_audio(f,[&](const std::string&file){audio.stop_file(file);});if(f.action==shin::MenuAction::start_game){main_menu=false;selecting=true;select=shin::StageSelect(progress.stages,progress.bonus);palette=assets.palette("shin.pal");audio.music(3);}else if(f.action==shin::MenuAction::options){main_menu=false;option_menu=true;options=shin::OptionMenu();}else if(f.action==shin::MenuAction::quit)quit=true;}
+ else if(option_menu){auto f=options.update({up,down,enter,escape});draw(f.draws);if(f.stop_cd)audio.stop_music();if(f.action==shin::OptionAction::main_menu)back_menu();else if(f.action!=shin::OptionAction::none){option_menu=false;settings=std::make_unique<shin::SettingsMenu>(f.action==shin::OptionAction::choice_zero_callback_42f9a0?shin::SettingsMenu::speed_mode:shin::SettingsMenu::scroll_mode,speed);}}
+ else if(settings){auto f=settings->update({up,down,bool(input.read(0x46d4b8)),bool(input.read(0x46d4bc)),enter,escape},speed,scrolling);draw(f.draws);if(f.stop_cd)audio.stop_music();if(f.action==shin::SettingsFrame::manual_speed)settings=std::make_unique<shin::SettingsMenu>(shin::SettingsMenu::speed_slider,speed);else if(f.action==shin::SettingsFrame::option_menu){settings.reset();option_menu=true;options=shin::OptionMenu();}else if(f.action==shin::SettingsFrame::main_menu)back_menu();else if(f.action==shin::SettingsFrame::benchmark_auto||f.action==shin::SettingsFrame::benchmark_manual){unsigned began_calibration=SDL_GetTicks();for(int pass=0;pass<10;++pass)frame.blit(assets.image("tt0001.app"),0,0,true);shin::SettingsMenu::complete_calibration(speed,SDL_GetTicks()-began_calibration,f.action==shin::SettingsFrame::benchmark_auto);back_menu();}}
  else if(selecting){if(escape){back_menu();continue;}for(auto&d:select.draw(tick))frame.blit(assets.image(d.resource),d.x,d.y,d.color_key);auto result=select.update({bool(input.read(0x46d4b8)),bool(input.read(0x46d4bc)),bool(input.read(0x46d4b0)),bool(input.read(0x46d4b4)),bool(input.read(0x46d4e8)),bool(input.read(0x46d4ec)),false});if(result.action==shin::SelectResult::start_stage)start(unsigned(result.index));else if(result.action==shin::SelectResult::start_bonus){start(result.index==3?1:0);intro.reset();standalone_bonus=true;shin::game::EntityPayload entry;level->call(result.index==0?0x401d10:result.index==1?0x41c810:result.index==2?0x41ba30:result.index==4?0x4245a0:0x43d120,level->player,entry,{});}}
  else if(intro){auto f=intro->update(SDL_GetTicks(),input.read(0x46d4e8)!=0);for(auto&d:f.draws)frame.blit(assets.image(d.resource),d.x,d.y,d.color_key);for(auto id:f.stop_sounds)audio.stop(id);for(auto id:f.sounds)audio.original(id);if(f.action==shin::CutsceneFrame::resume_level)intro.reset();}
  else{level->tick(input,frame);if(standalone_bonus&&!level->subgame_active()){standalone_bonus=false;selecting=true;select=shin::StageSelect(progress.stages,progress.bonus);palette=assets.palette("shin.pal");audio.music(3);}else if(level->completed()){if(progress.complete(int(stage)))save_progress();if(stage<6){int next=stage+1;auto previous=level->player;start(next);for(unsigned o=0x70;o<=0x8c;o+=4)level->player.at(o)=previous.at(o);for(unsigned o=0xc8;o<=0xfc;o+=4)level->player.at(o)=previous.at(o);if(next==1)level->player.at(0x8c)+=3;}else {selecting=true;select=shin::StageSelect(progress.stages,progress.bonus);intro.reset();audio.music(3);}}else if(level->wants_menu()){selecting=true;select=shin::StageSelect(progress.stages,progress.bonus);intro.reset();audio.music(3);}}

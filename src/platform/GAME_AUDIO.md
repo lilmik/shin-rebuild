@@ -1,3 +1,5 @@
+> Historical implementation notes below. Current 0.3.7 uses dr_flac to predecode complete BGM tracks into PCM memory; Windows uses waveOut, Switch uses SDL_mixer. MP3/MFPlay describes earlier implementations and remaining fallback code. See platform source and tools/README.md for current checks.
+
 # Game audio integration
 
 GameAudio owns independent waveOut PCM WAV voices, and Windows Media Foundation MFPlay MP3 playback. Repeated WAV play restarts that voice; independent IDs overlap. Missing files return false, and unbound original globals throw.

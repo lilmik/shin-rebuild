@@ -1,4 +1,5 @@
 # coding: utf-8
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 from pathlib import Path
 import struct,collections,json,re,hashlib
 root=Path('shin_rebuild'); original=Path('shin_pseudocode/recovered_callbacks_round5/functions')

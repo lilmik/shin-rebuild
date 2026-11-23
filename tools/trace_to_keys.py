@@ -1,3 +1,4 @@
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 """Convert a native gameplay trace into the headless verifier's input script."""
 import argparse
 import csv

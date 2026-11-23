@@ -1,3 +1,4 @@
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 from pathlib import Path
 exec(Path('shin_rebuild/tools/rebuild_extra_projectiles.py').read_text().split("s=body('0x44a130')")[0])
 b=Path('shin_pseudocode/restored_static.exe').read_bytes();pe=struct.unpack_from('<I',b,60)[0];o=pe+24+struct.unpack_from('<H',b,pe+20)[0];ss=[struct.unpack_from('<8sIIII',b,o+i*40) for i in range(struct.unpack_from('<H',b,pe+6)[0])]

@@ -1,3 +1,4 @@
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 # MDS layout reference: https://github.com/cdemu/cdemu/blob/master/libmirage/images/image-mds/image-mds.h
 from pathlib import Path
 import argparse,struct,wave,hashlib,json

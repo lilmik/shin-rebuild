@@ -122,3 +122,20 @@ endif()
 
 add_executable(rolling_stone_timing_test tests/rolling_stone_timing_test.cpp)
 target_link_libraries(rolling_stone_timing_test PRIVATE shin_game)
+
+if(WIN32)
+ add_executable(audio_dispatch_test tests/audio_dispatch_test.cpp)
+ target_link_libraries(audio_dispatch_test PRIVATE shin_native shin_game)
+endif()
+
+# Optional developer resource tools. No game assets are embedded in these targets.
+add_executable(verify_resources tools/resource_browser/verify_resources.cpp)
+target_include_directories(verify_resources PRIVATE src)
+if(WIN32)
+ add_executable(resource_viewer WIN32 tools/resource_browser/resource_viewer.cpp)
+ target_include_directories(resource_viewer PRIVATE src)
+ target_link_libraries(resource_viewer PRIVATE user32 gdi32 shell32)
+endif()
+
+add_executable(menu_idle_timing_test tests/menu_idle_timing_test.cpp)
+target_link_libraries(menu_idle_timing_test PRIVATE shin_game)

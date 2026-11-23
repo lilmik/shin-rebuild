@@ -1,3 +1,4 @@
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 from pathlib import Path
 import re,struct
 base=Path('shin_pseudocode/recovered_callbacks_round5/functions');out=Path('shin_rebuild/src/game');binary=Path('shin_pseudocode/restored_static.exe').read_bytes();off=lambda a:a-0x45a000+0x58000

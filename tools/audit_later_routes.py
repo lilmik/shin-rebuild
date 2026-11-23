@@ -1,3 +1,4 @@
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 import struct,collections,json
 from pathlib import Path
 b=Path('D:/ws_vs/lbxx/lbxx_asset/RESOURCE.RES').read_bytes();out={}

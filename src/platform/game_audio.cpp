@@ -1,5 +1,6 @@
 #include "game_audio.hpp"
 #include <fstream>
+#include <cctype>
 namespace shin::platform {
 void GameAudio::report_audio_error(const std::string&message){
  std::lock_guard<std::mutex>lock(error_mutex_);std::error_code ec;auto path=root_.parent_path()/"audio_error.log";
@@ -34,6 +35,15 @@ bool GameAudio::load_inmm_playlist(){std::ifstream in(root_/"_inmm.ini");if(!in)
 const std::map<unsigned,std::string>& GameAudio::sound_bindings(){static const std::map<unsigned,std::string> bindings={
 #include "sound_bindings.inc"
 };return bindings;}
+namespace {
+std::string sound_key(std::string name){for(char&c:name)c=c=='\\'?'/':char(std::tolower(static_cast<unsigned char>(c)));auto dot=name.rfind('.');if(dot!=std::string::npos)name.replace(dot,std::string::npos,".wav");return name;}
+}
+void GameAudio::stop(const std::string&relative){
+ const auto key=sound_key(relative);std::set<unsigned>ids;
+ for(const auto&entry:file_voices_)if(sound_key(entry.first)==key)ids.insert(entry.second);
+ for(const auto&entry:sound_bindings())if(sound_key(entry.second)==key)ids.insert(entry.first);
+ for(auto id:ids)stop_sound(id);
+}
 bool GameAudio::play_sound(unsigned id,bool loop){auto it=sound_bindings().find(id);if(it==sound_bindings().end())throw std::runtime_error("unbound original sound global");return play_file(it->second,id,loop);}
 bool GameAudio::play_file(const std::string& relative,unsigned id,bool loop){
  if(id==0){auto it=file_voices_.find(relative);if(it==file_voices_.end())it=file_voices_.emplace(relative,0x80000000u+unsigned(file_voices_.size())).first;id=it->second;}
@@ -52,8 +62,8 @@ bool GameAudio::prepare_track(unsigned track){
  auto begin=GetTickCount64();while(!next->buffered()){if(GetTickCount64()-begin>=10000)return false;Sleep(1);}
  prepared_music_=std::move(next);prepared_track_=track;return true;
 }
-bool GameAudio::play_track(unsigned track){
- if(active_track_==track)return true;auto it=tracks_.find(track);if(it==tracks_.end())throw std::runtime_error("unverified CD track mapping: bind_track required");auto file=root_/it->second;if(!std::filesystem::is_regular_file(file))throw std::runtime_error("missing music asset");
+bool GameAudio::play_track(unsigned track,bool restart){
+ if(active_track_==track&&!restart)return true;auto it=tracks_.find(track);if(it==tracks_.end())throw std::runtime_error("unverified CD track mapping: bind_track required");auto file=root_/it->second;if(!std::filesystem::is_regular_file(file))throw std::runtime_error("missing music asset");
  if(silent_){active_track_=track;events_.push_back({"play_track",it->second,track,true});return true;}
  if(file.extension()==".flac"){
   std::unique_ptr<FlacMusic>next;

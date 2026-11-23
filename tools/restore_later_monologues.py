@@ -1,3 +1,4 @@
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 from pathlib import Path
 import re,struct,json
 exec(Path('shin_rebuild/tools/rebuild_stage2_scene_events.py').read_text().split('configs=')[0])

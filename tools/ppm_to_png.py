@@ -1,3 +1,4 @@
+# Developer maintenance: see tools/README.md; historical scripts may require local analysis inputs and can generate files.
 from pathlib import Path
 import struct,zlib,sys
 p=Path(sys.argv[1]);_,s,_,b=p.read_bytes().split(b'\n',3);w,h=map(int,s.split())

@@ -41,12 +41,12 @@ public:
  static const std::map<unsigned,std::string>&sound_bindings();
  bool play_sound(unsigned id,bool loop=false);bool play_file(const std::string&,unsigned id=0,bool loop=false);
  void play_wav(const std::string&file,bool loop=false){if(!play_file(file,0,loop))report_audio_error("Sound unavailable: "+file);journal.push_back({file,loop});}
- void stop_sound(unsigned);void stop_music();bool play_track(unsigned);
+ void stop_sound(unsigned);void stop_music();bool play_track(unsigned,bool restart=false);
  bool prepare_track(unsigned);
  void bind_track(unsigned track,std::string file){tracks_[track]=std::move(file);}
  bool load_inmm_playlist();
  const auto&events()const{return events_;}
- void stop(const std::string&relative){std::set<unsigned> ids;for(const auto&e:events_)if(e.resource==relative)ids.insert(e.id);for(auto id:ids)stop_sound(id);}
+ void stop(const std::string&relative);
  void stop_all(){if(!silent_)enqueue_sound([this]{voices_.clear();});stop_music();}
 };
 }
