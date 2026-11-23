@@ -1,0 +1,4 @@
+case 70: names_={"1#242.raw","2#111.raw","2#121.raw","2#122.raw","2#123.raw","2#124.raw","2#125.raw","2#126.raw"}; times_={6320,7320,8320,12320}; poses_={{29,{0,1}},{30,{2}},{31,{3,4,5}},{32,{6,7}}}; sounds_={"RESOURCE/57.wav","RESOURCE/58.wav"};break;
+case 71: names_={"2#211.raw","2#212.raw","2#213.raw","2#214.raw","2#215.raw","2#216.raw","2#221.raw","2#222.raw","1#247.raw","1#248.raw"}; times_={1000,5760,6760,7760,11320}; poses_={{33,{0,1}},{34,{2,3}},{35,{4,5}},{36,{6,7}},{37,{8,9}}}; sounds_={"RESOURCE/59.wav","RESOURCE/60.wav","RESOURCE/62.wav"};break;
+case 72: names_={"2#311.raw","2#312.raw","2#313.raw","2#211.raw","2#321.raw","2#322.raw","2#323.raw"}; times_={2760}; poses_={{38,{0,1,2}}}; sounds_={"RESOURCE/65.wav"};break;
+case 74: names_={"1#241.raw","2#211.raw","2#511.raw","2#512.raw"}; times_={4660,8030}; poses_={{43,{0,1}},{44,{2,3}}}; sounds_={"RESOURCE/70.wav","RESOURCE/71.wav"};break;

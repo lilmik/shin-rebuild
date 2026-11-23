@@ -1,0 +1,3 @@
+#include "../src/game/stage2_guard.hpp"
+#include "../src/game/stage2_boss.hpp"
+int main(int argc,char**argv){if(argc!=2)return 1;shin::AssetStore a(argv[1]);for(auto*n:shin::game::Stage2Guard::names)a.image(n);for(auto*n:shin::game::Stage2Boss::names)a.image(n);shin::IndexedSurface f(640,480,254);shin::game::Stage2Guard g(100,100,a);for(int i=0;i<240;++i)g.tick(0,0,300,64,a,f);if(g.projectiles.size()!=1)return 2;g.hurt();for(int i=0;i<25;++i)g.tick(0,0,300,64,a,f);if(!g.defeated)return 3;shin::game::Stage2Boss b(100,100,a);for(int hp=10;hp>0;--hp){b.hurt();for(int i=0;i<22;++i)b.tick(0,0,300,64,a,f);}return b.defeated?0:4;}

@@ -1,0 +1,5 @@
+#include "player_object_response.hpp"
+#include <map>
+using namespace shin;using namespace shin::game;
+struct C:ObjectResponseContext {std::map<unsigned,int> globals;int sounds=0,calls=0;int& global(unsigned a)override{return globals[a];}int sound(unsigned a)override{if(a!=0x475200&&a!=0x4752e8)throw std::runtime_error("unexpected sound");++sounds;return 7;}int call(unsigned id,PlayerPayload&,EntityPayload&,std::initializer_list<std::int64_t>args)override{if(id!=0x42ebb0||args.size()!=1||*args.begin()!=0x30000)throw std::runtime_error("unimplemented dependency");++calls;return 0;}};
+int main(){PlayerPayload p;EntityPayload e;C c;e.kind=0x29+0x27;p.at(0x70)=99;p.at(0x8c)=2;respond_player_object(p,e,c);if(p.at(0x70)!=100||p.at(0x8c)!=3||p.at(0xf8)!=1||c.sounds!=1||c.calls!=1||c.globals[0x45c330]!=1)return 1;e={};e.kind=0x29+0x32;e.at(0x3c)=-1;p.at(0x5c)=0;p.at(0xb8)=0;respond_player_object(p,e,c);if(p.at(0x5c)!=4||p.at(0x54)!=-16||p.at(0x58)!=-5||p.at(0x88)!=1||c.sounds!=2)return 2;e={};e.kind=0x29+0x29;respond_player_object(p,e,c);if(e.state!=2||p.at(0x5c)!=7)return 3;return 0;}

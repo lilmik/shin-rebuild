@@ -1,0 +1,4 @@
+#include "../src/game/stage_intro.hpp"
+#include "../src/assets/asset_store.hpp"
+#include <cassert>
+int main(){shin::AssetStore assets("D:\\ws_vs\\lbxx\\lbxx_asset\\RESOURCE.RES");for(auto n:shin::stage2_intro_assets)assets.image(n);shin::StageIntro intro(1);unsigned plays=0,stops=0;bool done=false;for(unsigned now=0;now<60000&&!done;now+=16){auto f=intro.update(now,false);plays+=unsigned(f.sounds.size());stops+=unsigned(f.stop_sounds.size());done=f.action==shin::CutsceneFrame::resume_level;}assert(done&&plays==6&&stops==1);assert(intro.update(60000,false).draws.empty());shin::StageIntro skip(1);assert(skip.update(0,true).action==shin::CutsceneFrame::resume_level);shin::StageIntro strict(1);strict.update(0,false);strict.update(300,false);assert(strict.phase()==0);strict.update(301,false);assert(strict.phase()==1);}

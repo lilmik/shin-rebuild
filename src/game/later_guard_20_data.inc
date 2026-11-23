@@ -1,0 +1,1 @@
+names={"chh111aa.raw","chh111ab.raw","chh111ac.raw","chh111ad.raw","chh111ba.raw","chh111bb.raw","chh111bc.raw","chh111bd.raw","chh112aa.raw","chh112ab.raw","chh112ac.raw","chh112ad.raw","chh112ba.raw","chh112bb.raw","chh112bc.raw"};poses={{0,1,2,3},{0,1,2,3},{4,5,6,7}};

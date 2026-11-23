@@ -1,0 +1,3 @@
+#include "../src/platform/game_audio.hpp"
+#include <iostream>
+int main(int argc,char**argv){if(argc!=2)return 1;shin::platform::GameAudio audio(argv[1],true);audio.play_wav("RESOURCE/dem-shin.wav");audio.play_wav("RESOURCE/bonus.wav");if(audio.journal.size()!=2)return 2;if(audio.events()[0].id==audio.events()[1].id)return 6;if(!audio.load_inmm_playlist())return 3;for(unsigned t=2;t<=4;++t){if(!audio.play_track(t))return 4;auto expected="bgm\\0"+std::to_string(t-1)+".mp3";if(audio.events().back().resource!=expected)return 5;}audio.stop_all();std::cout<<"real WAV and CD2/CD3/CD4 INMM playlist routing passed\n";}

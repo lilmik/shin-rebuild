@@ -1,0 +1,8 @@
+"ryoko_s.app",
+"ryoko_w1.app",
+"ryoko_w2.app",
+"ryoko_w3.app",
+"ryoko_w4.app",
+"ryoko_d.app",
+"ryoko_a1.app",
+"ryoko_a2.app",

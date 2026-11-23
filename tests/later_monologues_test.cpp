@@ -1,0 +1,3 @@
+#include "../src/game/later_monologues.hpp"
+#include <cassert>
+int main(int argc,char**argv){assert(argc==2);shin::AssetStore a(argv[1]);shin::IndexedSurface f(853,480);for(int type:{0x55,0x6b}){shin::LaterMonologues e;shin::PlayerPayload p;shin::initialize_player_payload(p,5,5);unsigned voices=0;assert(e.start(type,p,0,[&](unsigned){++voices;}));for(unsigned t=0;t<15000&&e.active();t+=16){e.tick(p,t,false,0,0,a,f,[&](unsigned){++voices;});p.at(12)=160;p.at(0x58)=0;}assert(!e.active()&&p.at(0x5c)==0);assert(voices==(type==0x55?3u:1u));assert(e.start(type,p,20000,[](unsigned){}));e.tick(p,20001,true,0,0,a,f,[](unsigned){});e.tick(p,20002,false,0,0,a,f,[](unsigned){});assert(!e.active());}}

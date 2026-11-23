@@ -1,0 +1,4 @@
+#include "../src/game/later_stage_falling_hazards.hpp"
+#include <iostream>
+struct Context:shin::game::ObjectResponseContext {int g=0,calls=0;int&global(unsigned)override{return g;}int sound(unsigned)override{return 0;}int call(unsigned id,shin::PlayerPayload&,shin::game::EntityPayload&,std::initializer_list<std::int64_t>)override{if(id!=0x40d7f0)throw std::runtime_error("unexpected helper");++calls;return 0;}};
+int main(int argc,char**argv){if(argc!=2)return 1;shin::AssetStore a(argv[1]);const auto&last=a.image("ddw2.app");shin::IndexedSurface frame(640,480);for(int x:{130,160}){shin::LaterStageFallingHazards h;h.spawn(100,0);if(h.objects[0].e.at(0xc)!=last.width||h.objects[0].e.at(0x10)!=last.height)return 2;shin::PlayerPayload p;p.at(8)=x;p.at(12)=80;p.at(0x10)=32;p.at(0x34)=32;p.at(0x38)=60;Context c;h.tick(0,0,a,frame,p,c);h.tick(0,0,a,frame,p,c);if(h.objects[0].e.state!=2||p.at(0x58)!=-5)return 3;if(p.at(0x54)!=(x==130?-16:16))return 4;}return 0;}

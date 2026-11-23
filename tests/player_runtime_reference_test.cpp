@@ -1,0 +1,55 @@
+#include "../src/game/player_animation.hpp"
+#include <stdexcept>
+// Reference: original copy controlled Frida run ev_147781010f36bae490355fb22387bd0ffda347ff48eb80fe023436fdc1bc81b2.
+int main(){shin::PlayerPayload p;p.words.fill(777);shin::initialize_player_payload(p,0,0);
+ if(p.at(8)!=0)throw std::runtime_error("runtime field 0x8 mismatch");
+ if(p.at(12)!=0)throw std::runtime_error("runtime field 0xc mismatch");
+ if(p.at(16)!=76)throw std::runtime_error("runtime field 0x10 mismatch");
+ if(p.at(20)!=72)throw std::runtime_error("runtime field 0x14 mismatch");
+ if(p.at(24)!=4572948)throw std::runtime_error("runtime field 0x18 mismatch");
+ if(p.at(28)!=0)throw std::runtime_error("runtime field 0x1c mismatch");
+ if(p.at(32)!=0)throw std::runtime_error("runtime field 0x20 mismatch");
+ if(p.at(36)!=1)throw std::runtime_error("runtime field 0x24 mismatch");
+ if(p.at(40)!=100)throw std::runtime_error("runtime field 0x28 mismatch");
+ if(p.at(44)!=24)throw std::runtime_error("runtime field 0x2c mismatch");
+ if(p.at(48)!=14)throw std::runtime_error("runtime field 0x30 mismatch");
+ if(p.at(52)!=50)throw std::runtime_error("runtime field 0x34 mismatch");
+ if(p.at(56)!=71)throw std::runtime_error("runtime field 0x38 mismatch");
+ if(p.at(68)!=0)throw std::runtime_error("runtime field 0x44 mismatch");
+ if(p.at(72)!=0)throw std::runtime_error("runtime field 0x48 mismatch");
+ if(p.at(76)!=0)throw std::runtime_error("runtime field 0x4c mismatch");
+ if(p.at(80)!=0)throw std::runtime_error("runtime field 0x50 mismatch");
+ if(p.at(84)!=0)throw std::runtime_error("runtime field 0x54 mismatch");
+ if(p.at(88)!=0)throw std::runtime_error("runtime field 0x58 mismatch");
+ if(p.at(92)!=0)throw std::runtime_error("runtime field 0x5c mismatch");
+ if(p.at(96)!=0)throw std::runtime_error("runtime field 0x60 mismatch");
+ if(p.at(100)!=0)throw std::runtime_error("runtime field 0x64 mismatch");
+ if(p.at(104)!=0)throw std::runtime_error("runtime field 0x68 mismatch");
+ if(p.at(112)!=0)throw std::runtime_error("runtime field 0x70 mismatch");
+ if(p.at(116)!=0)throw std::runtime_error("runtime field 0x74 mismatch");
+ if(p.at(136)!=1)throw std::runtime_error("runtime field 0x88 mismatch");
+ if(p.at(140)!=5)throw std::runtime_error("runtime field 0x8c mismatch");
+ if(p.at(144)!=0)throw std::runtime_error("runtime field 0x90 mismatch");
+ if(p.at(148)!=0)throw std::runtime_error("runtime field 0x94 mismatch");
+ if(p.at(152)!=0)throw std::runtime_error("runtime field 0x98 mismatch");
+ if(p.at(176)!=3)throw std::runtime_error("runtime field 0xb0 mismatch");
+ if(p.at(180)!=0)throw std::runtime_error("runtime field 0xb4 mismatch");
+ if(p.at(188)!=0)throw std::runtime_error("runtime field 0xbc mismatch");
+ if(p.at(192)!=0)throw std::runtime_error("runtime field 0xc0 mismatch");
+ if(p.at(196)!=0)throw std::runtime_error("runtime field 0xc4 mismatch");
+ if(p.at(200)!=0)throw std::runtime_error("runtime field 0xc8 mismatch");
+ if(p.at(204)!=0)throw std::runtime_error("runtime field 0xcc mismatch");
+ if(p.at(208)!=0)throw std::runtime_error("runtime field 0xd0 mismatch");
+ if(p.at(212)!=0)throw std::runtime_error("runtime field 0xd4 mismatch");
+ if(p.at(216)!=0)throw std::runtime_error("runtime field 0xd8 mismatch");
+ if(p.at(220)!=0)throw std::runtime_error("runtime field 0xdc mismatch");
+ if(p.at(224)!=0)throw std::runtime_error("runtime field 0xe0 mismatch");
+ if(p.at(228)!=0)throw std::runtime_error("runtime field 0xe4 mismatch");
+ if(p.at(232)!=0)throw std::runtime_error("runtime field 0xe8 mismatch");
+ if(p.at(236)!=0)throw std::runtime_error("runtime field 0xec mismatch");
+ if(p.at(240)!=0)throw std::runtime_error("runtime field 0xf0 mismatch");
+ if(p.at(244)!=0)throw std::runtime_error("runtime field 0xf4 mismatch");
+ if(p.at(252)!=0)throw std::runtime_error("runtime field 0xfc mismatch");
+ if(p.at(256)!=0)throw std::runtime_error("runtime field 0x100 mismatch");
+ if(p.at(260)!=0)throw std::runtime_error("runtime field 0x104 mismatch");
+}

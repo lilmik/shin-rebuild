@@ -1,0 +1,2 @@
+#include "../src/game/stage2_mouse.hpp"
+int main(int argc,char**argv){if(argc!=2)return 1;shin::AssetStore a(argv[1]);for(auto*n:shin::game::Stage2Mouse::names)a.image(n);shin::game::Stage2Mouse m(100,100,a);shin::IndexedSurface f(640,480,254);for(int i=0;i<21;++i)m.tick(0,0,a,f);if(m.payload.at(0x58)!=4)return 2;m.platform(2);if(m.payload.at(0x58)!=2)return 3;m.hurt();for(int i=0;i<15;++i)m.tick(0,0,a,f);return m.defeated?0:4;}

@@ -1,0 +1,11 @@
+static const char* ability_names0[]={"twingaa.app","twingab.app","twingba.app","twingbb.app"};
+static const int ability_indices0[]={0,1,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3,2,3};
+static const char* ability_names1[]={"mamsc2aa.app","mamsc2ba.app","mamsc2ab.app","mamsc2bb.app"};
+static const int ability_indices1[]={0,1,2,3};static const char* ability_names2[]={"motheraa.raw","motherab.raw","motherac.raw","motherba.raw","motherbb.raw","motherbc.raw","motherbd.raw"};
+static const int ability_indices2[]={0,1,2,3,4,5,6};
+static const char* ability_names3[]={"fa-1.raw","fa-2.raw","fa-3.raw","fa-4.raw","fa-6.raw"};
+static const int ability_indices3[]={0,1,2,3,2,3,2,3,2,3,4};
+static const char* ability_names4[]={"ymothaa.raw","ymothab.raw","ymothac.raw","ymothad.raw","ymothba.raw","ymothbb.raw","ymothbc.raw","ymothbd.raw"};
+static const int ability_indices4[]={0,0,1,2,3,0,4,5,6,7,0};
+static const char* ability_names5[]={"ymoexaa.raw","ymoexab.raw","ymoexac.raw","ymoexad.raw"};
+static const int ability_indices5[]={0,1,2,3};

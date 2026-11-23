@@ -1,0 +1,11 @@
+inline static constexpr const char* first_names[]={"6#321.raw","6#322.raw","oka11aa.raw","oka11ab.raw","oka11ac.raw","oka11ad.raw"};
+inline static constexpr const char* second_names[]={"6#311.raw","6#312.raw"};
+inline static constexpr const char* player_names[]={"2#211.raw","5#121.raw","5#122.raw"};
+inline static constexpr const char* missile_names[]={"oka12ba.raw","oka12bb.raw","oka12bc.raw"};
+inline static constexpr int first0[]={0,1};
+inline static constexpr int first1[]={0};
+inline static constexpr int first2[]={2,3,4,5};
+inline static constexpr int second0[]={0,1};
+inline static constexpr int second1[]={0};
+inline static constexpr int player0[]={0};
+inline static constexpr int player1[]={1,2};

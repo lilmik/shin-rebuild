@@ -1,0 +1,5 @@
+inline static constexpr const char* robot_names[]={"mrh1aa.raw","mrh1ab.raw","mrh2aa.raw","mrh2ab.raw","8#421.raw","8#422.raw","8#423.raw"};
+inline static constexpr const char* nurse_names[]={"ana2aa.raw","ana2ab.raw","ana2ba.raw","ana2bb.raw","ana2ca.raw","8#411.raw","8#431.raw"};
+inline static constexpr const char* player_names[]={"1#132.raw","1#133.raw","1#241.raw","1#115.raw","1#116.raw","1#117.raw","2#621.raw","2#622.raw","2#623.raw","2#411.raw","2#412.raw","2#631.raw","2#632.raw","2#633.raw","2#634.raw","2#635.raw","2#636.raw","2#311.raw","2#312.raw","1#312.raw","1#321.raw","2#512.raw"};
+inline static constexpr const char* prop_names[]={"buri1aa.raw","buri1ab.raw","buri2ab.raw","buri2ab.raw","buri3ab.raw","buri3ab.raw","buri4ab.raw","buri4ab.raw","buri5ab.raw","buri5ab.raw"};
+inline static constexpr const char* missile_names[]={"tana1.raw","tana2.raw"};

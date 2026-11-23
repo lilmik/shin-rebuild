@@ -1,0 +1,2 @@
+#include "player_world_response.hpp"
+int main(){using namespace shin;MapData m{1,1,{{-1,0,-1,0,0}}};AppImage b{640,32,std::vector<unsigned char>(640*32)};game::CollisionWorld w(m,b);PlayerPayload p;p.at(0x34)=16;p.at(0x38)=16;p.at(8)=4;p.at(12)=4;auto o=game::respond_player_world(p,w,2);if(p.at(100)!=1)return 1;o=game::respond_player_world(p,w,5);if(!o.hurt_sound_requested||p.at(0xb4)!=1||p.at(0x18)!=0x45c740||p.at(0x5c)!=4)return 2;for(auto&v:b.indices)v=3;p.at(8)=16;p.at(12)=1;p.at(0x38)=8;o=game::respond_player_world(p,w,3,0);if(!o.safety_limit_reached)return 3;return 0;}

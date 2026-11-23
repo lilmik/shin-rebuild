@@ -1,0 +1,15 @@
+inline static constexpr const char* monologue_names[]={"1#247.raw","1#248.raw","7#611.raw","7#612.raw","1#611.raw","1#612.raw","2#512.raw","2#511.raw"};
+inline static constexpr const char* player_names[]={"7#711.raw"};
+inline static constexpr const char* first_names[]={"7#731.raw","7#732.raw","7#733.raw"};
+inline static constexpr const char* second_names[]={"7#741.raw","7#742.raw","7#743.raw"};
+inline static constexpr const char* robot_names[]={"mrh1aa.raw","mrh1ab.raw","mrh2aa.raw","mrh2ab.raw","7#723.raw"};
+inline static constexpr const char* nurse_names[]={"ana2aa.raw","ana2ab.raw","ana2ba.raw","ana2bb.raw","7#721.raw"};
+inline static constexpr int mono0_frames[]={0,1};
+inline static constexpr int mono1_frames[]={2,3};
+inline static constexpr int mono2_frames[]={4};
+inline static constexpr int first_frames[]={0,1,2};
+inline static constexpr int second_frames[]={0,1,2};
+inline static constexpr int robot0_frames[]={0,1,2,3};
+inline static constexpr int robot1_frames[]={4};
+inline static constexpr int nurse0_frames[]={0,1,2,3};
+inline static constexpr int nurse1_frames[]={4};

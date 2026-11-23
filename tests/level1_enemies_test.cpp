@@ -1,0 +1,3 @@
+#include "../src/game/level1_enemies.hpp"
+#include <iostream>
+int main(int c,char**v){if(c!=2)return 1;shin::AssetStore a(v[1]);shin::MapData m{4,4,std::vector<shin::MapCell>(16,{-1,-1,-1,0,0})};shin::AppImage b{640,32,std::vector<unsigned char>(640*32)};shin::PlayerPayload p;shin::initialize_player_payload(p,0,0);shin::Level1Enemies e(a,m,b,p);shin::IndexedSurface f(640,480);for(int i=0;i<3;++i)e.spawn(i,40+i*70,20);e.tick(0,0,f);if(e.targets().size()!=3)return 2;for(auto*s:e.targets())a.image(shin::Level1Enemies::image_name(*s));if(!e.hit({0,0,100,100},30,10))return 3;std::cout<<"enemy assets/update/hit passed\n";}

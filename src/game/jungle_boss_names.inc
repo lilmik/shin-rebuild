@@ -1,0 +1,2 @@
+case 39:names={"oka11aa.raw","oka11ab.raw","oka11ac.raw","oka11ad.raw","oka11ba.raw","oka11bb.raw","oka11bc.raw","oka12aa.raw","oka12ab.raw","oka12ac.raw","oka12ad.raw"};break;
+case 40:names={"oka21aa.raw","oka21ab.raw","oka21ac.raw","oka21ad.raw","oka21ba.raw","oka21bb.raw","oka21bc.raw","oka22aa.raw","oka22ab.raw","oka22ac.raw","oka22ad.raw","oka22ba.raw","oka22bb.raw","oka22bc.raw"};break;

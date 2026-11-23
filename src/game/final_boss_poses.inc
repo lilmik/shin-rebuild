@@ -1,0 +1,17 @@
+case 0x42ac70:state=1;delay=10;frames={0,1,2,3};break;
+case 0x42aca0:state=2;delay=10;frames={0,1,2,3};break;
+case 0x42acd0:state=3;delay=10;frames={5,6,7,8};break;
+case 0x42ad00:state=4;delay=0x14;frames={9,10,11,12};break;
+case 0x42ad70:state=5;delay=10;frames={13,14,15,16};break;
+case 0x42af90:state=6;delay=10;frames={0,1,2,3};break;
+case 0x42afc0:state=7;delay=10;frames={4};break;
+case 0x42aff0:state=9;delay=10;frames={6};break;
+case 0x4435b0:state=1;delay=10;frames={0,1,2,3};break;
+case 0x4435e0:state=2;delay=10;frames={0,1,2,3};break;
+case 0x443610:state=3;delay=10;frames={18,19,20,21};break;
+case 0x443640:state=4;delay=10;frames={13,14};break;
+case 0x443670:state=5;delay=10;frames={15,16};break;
+case 0x443890:state=6;delay=10;frames={0,1,2,3};break;
+case 0x4438c0:state=7;delay=10;frames={0};break;
+case 0x4438f0:state=8;delay=10;frames={4,5};break;
+case 0x443920:state=9;delay=10;frames={6};break;

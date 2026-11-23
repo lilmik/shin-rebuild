@@ -1,0 +1,2 @@
+#include "../src/game/enemy_missiles.hpp"
+int main(int c,char**v){if(c!=2)return 1;shin::AssetStore a(v[1]);shin::MapData m{30,20,std::vector<shin::MapCell>(600,{-1,-1,-1,0,0})};shin::AppImage b{640,32,std::vector<unsigned char>(640*32)};shin::EnemyMissiles s(a,m,b);s.spawn(0x5b,100,100,3,-16);s.spawn(0x5f,200,100,-4,0);shin::IndexedSurface f(640,480);s.tick(0,0,f);if(s.missiles[0].payload.at(8)!=85||s.missiles[1].payload.at(4)!=196)return 2;return 0;}
