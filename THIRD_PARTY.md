@@ -9,3 +9,7 @@ Dependencies are installed separately and retain their own license terms. This r
 - Original game assets, audio, artwork, proprietary executables and decompiler artifacts: not distributed here. No permission for them is granted by LICENSE.
 
 A source publication is not a completed license review for distributing every possible compiled dependency combination.
+
+## Author-provided artwork
+
+`docs/images/living-room.png` was created and supplied by lilmik for this project. It is not extracted original-game artwork. See `docs/images/NOTICE.md` for the separate artwork notice; the code license does not automatically apply to it.
