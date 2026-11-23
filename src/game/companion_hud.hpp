@@ -20,7 +20,14 @@ public:
  void tick(PlayerPayload&p,int cx,int cy,AssetStore&assets,IndexedSurface&surface,const std::vector<Target>&targets){
   if(state_==1&&tick_==49)pose(2);
   else if(state_==2&&tick_==49)pose(3);
-  else if(state_==3){if(tick_==49)pose(4);if(!targets.empty()){x_+=(targets.front().x-x_)/2;y_+=(targets.front().y-y_)/2;}}
+  else if(state_==3){if(tick_==49)pose(4);const Target*nearest=nullptr;long long best=0;
+   for(const auto&t:targets){
+    // Prefer reachable, visible enemies rather than an old offscreen entry.
+    if(!game::intersects(t.rect,t.x-cx,t.y-cy,{-surface.origin_x,-surface.origin_y,surface.width-surface.origin_x,surface.height-surface.origin_y},0,0))continue;
+    long long dx=static_cast<long long>(t.x)-x_,dy=static_cast<long long>(t.y)-y_,distance=dx*dx+dy*dy;
+    if(!nearest||distance<best){nearest=&t;best=distance;}
+   }
+   if(nearest){x_+=(nearest->x-x_)/2;y_+=(nearest->y-y_)/2;}}
   else if(state_==4){if(tick_==49)pose(0);x_=10;y_=400;}
   int sx=10-surface.origin_x,sy=surface.height-80-surface.origin_y;if(state_==3){sx=x_-cx;sy=y_-cy;}else{x_=p.at(8);y_=p.at(12);}
   screen_x_=sx;screen_y_=sy;origin_x_=surface.origin_x;origin_y_=surface.origin_y;

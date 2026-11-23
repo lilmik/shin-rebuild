@@ -1,0 +1,25 @@
+# Stage scene reconstruction
+
+stage_scene.hpp/.cpp compiled with MSVC C++17 /W4 and verify_stage_scene exercised all seven original maps, tilesets, collision images and shared background successfully. The verification program is independent of root build.
+
+Exact bindings come from original bytes at map-name table0x461758 (stride100), tileset-name table0x46d0c0 and block-name table0x46d188 (stride20), read by0x427900 and0x4321f0. Shared gra image loaded by0x424bd0. Stage init/update/cleanup addresses are from0x43ee50 and seven initialization functions0x43e930..0x43ed60; the module records these identities but does not execute their still-untranslated callbacks.
+
+MAP fields2/3/4 now have established placement semantics from0x426380 and0x427610: sprite/object type, signed pixel x offset, signed pixel y offset. Pixel x=cell_x*32+16+offset_x-sprite_width/2; pixel y=(cell_y+1)*32+offset_y-sprite_height. Enumeration is not equivalent to live spawning: original visible and extended regions use different case tables and consume selected map entries.
+
+0x427900 zeroes camera offsets and spawn cell globals;0x427eb0 establishes tracking thresholds170/470/240/280. SceneCamera restores these initial values. It does not implement scrolling updates. No per-stage palette binding or final player spawn is guessed. next_saved_progress implements0x43ee50 signed comparison; caller owns file IO and missing-file default1.
+
+Verified stage dimensions/object-entry counts:1059x100/538,1401x100/619,1400x20/1333,1131x100/221,999x200/619,1407x100/877,1402x100/654.
+
+Collision extension: collision_world.hpp/.cpp recovers map ground (0x431d60), left/right vertical probes (0x431f90/0x4320c0), whole-body collision classification (0x431130), strict rectangle intersection (0x434ad0) and two execution dispatchers (0x431000/0x434a50). Body sampling prioritizes material1 then2 around entire perimeter, then3/4/5 at bottom. Ground/side report1..4 only. Original maps use foreground tile to choose 32x32 mask from20-column 640-wide block atlas. Safety bounds return0 outside valid image, unlike unguarded original reads.
+
+CollisionDispatcher preserves insertion order and state0 eligibility. Pair dispatch deliberately invokes both callbacks after a confirmed overlap even if first callback marks second object; original does not recheck between callbacks. During callbacks only mark state; direct removal of an active registry iterator is unsupported. The object-specific 0x4098f0 pickup/damage logic remains separate and unimplemented here, not replaced with empty success.
+
+verify_collision.cpp compiled and ran successfully: ground/material priority, strict touching-edge exclusion, two-way callback-after-state-change ordering. Stage module include now points to independent ../assets/resource_archive.hpp.
+
+All negative world coordinates now return0 before signed tile division; this is an explicit safe extension outside the original defined map domain. Regression verify_collision passed after correction.
+
+player_world_response.hpp/.cpp recovers complete0x40d4c0 material switch:1/2 try26 upward positions then previous-position rollback,3/4 perform16 side pushes then upward escape,5 apply hurt animation setter0x40d7f0 and mark respawn field0xb4. Original0x40d7f0 also calls DirectSound play, therefore API returns hurt_sound_requested rather than discarding the effect. Animation table0x45c740 remains a provenance ID in PlayerPayload, not a host pointer. The otherwise unbounded upward/rollback searches have scan budget(default65536); exhaustion returns safety_limit_reached instead of hanging. verify_world_response compiled and passed case2 grounded flag,case5 exact animation/respawn fields and sound request, and bounded escape regression. No damage/actor collision callback0x4098f0 has been silently replaced.
+
+player_object_response.hpp/.cpp now preserves every case from0x4098f0. Portable logical references replace32-bit native pointers; global values remain context-owned. Required call dependencies are pure virtual and unknown dependencies must fail explicitly in a host implementation, not return successful no-op. Two scalar animation helpers40d7f0/40d890 are inlined, including hurt sound request40d7f0. Generated code is reproducible with generate_object_response.py run from workspace root; dependencies enumerated in player_object_dependencies.json. Original iVar1 return is uninitialized on some no-op paths; reconstruction initializes it to0 as explicit definition of that otherwise undefined return. Scalar state mutations and early returns are preserved.
+
+Representative tests compiled and passed: type0x50 pickup increments score99→100,life2→3,item+f8,global45c330 and life sound; type0x5b hazard applies hurt pose,knockback-16,-5 and sound; type0x52 consumes object and sets state7. Object callbacks have a scan budget on overlap escape loops and throw if exhausted. Full end-to-end entity behavior still requires49 host dependencies and original actor state callbacks; this module's successful compilation does not mean those dependencies are complete.

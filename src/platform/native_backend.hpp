@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <memory>
 #include "../core/input_state.hpp"
 namespace shin::platform {
 class NativeWindow {
@@ -29,10 +30,21 @@ public:
 };
 // PCM WAV through waveOut; each object owns one independent voice.
 class WavSound {
+ friend struct AudioDecodeProbe;
  HWAVEOUT device_{}; WAVEHDR header_{}; std::vector<char> data_; WAVEFORMATEX format_{}; bool prepared_=false;
 public:
  ~WavSound(){stop();} WavSound()=default; WavSound(const WavSound&)=delete; WavSound& operator=(const WavSound&)=delete;
  bool load(const std::wstring&); bool play(bool loop=false); void stop(); void pause(){if(device_)waveOutReset(device_);}
 };
+// Decoder and waveOut streaming do not depend on OS FLAC codecs.
+class FlacMusic {
+ struct State;std::unique_ptr<State> state_;
+public:
+ FlacMusic();~FlacMusic();
+ bool start(const std::wstring&,float volume,bool paused=false);void stop();void set_volume(float);
+ bool buffered()const;void resume();
+ bool playing()const;unsigned loops()const;
+};
+
 }
 

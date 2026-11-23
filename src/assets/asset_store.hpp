@@ -89,6 +89,12 @@ public:
   return images_.emplace(name,std::move(surface)).first->second;
  }
  void preload_images(std::initializer_list<const char*> names){for(auto name:names)image(name);}
+ // Use the same decoder and repairs as on-demand access; cached surfaces
+ // remain owned by this store for its entire lifetime.
+ void preload_all_images(){
+  for(const auto&entry:entries_)if(entry.first.size()>=4&&entry.first.compare(entry.first.size()-4,4,".app")==0)image(entry.first);
+  image("selector_fixed_tapes.app");
+ }
  std::array<std::uint32_t,256> palette(const std::string& name)const{
   auto colors=decode_palette(bytes(name));std::array<std::uint32_t,256> out{};
   for(std::size_t i=0;i<256;++i)out[i]=(std::uint32_t(colors[i].red)<<16)|(std::uint32_t(colors[i].green)<<8)|colors[i].blue;

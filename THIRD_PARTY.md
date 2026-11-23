@@ -17,3 +17,9 @@ A source publication is not a completed license review for distributing every po
 ## Historical edition reference images
 
 `docs/images/editions/` contains packaging/disc reference photographs extracted from the owner-provided project document. These are distinct from the author-created living-room artwork. Existing watermarks are retained. They are not covered by the code license; see `docs/images/editions/NOTICE.md`.
+
+## Bundled FLAC decoder
+
+`src/third_party/dr_flac.h` contains dr_flac 0.13.5 from the dr_libs project. It is used under its MIT No Attribution (MIT-0) option; the complete upstream notices remain in the header. Upstream: https://github.com/mackron/dr_libs .
+
+`resources/windows/living-room.ico` is an application-icon conversion of the author-provided living-room artwork. Its artwork notice is the same as `docs/images/living-room.png`.

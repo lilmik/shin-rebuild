@@ -1,0 +1,4 @@
+#include "../src/platform/native_backend.hpp"
+#include <filesystem>
+#include <iostream>
+int main(int argc,char**argv){if(argc!=2)return 1;shin::platform::FlacMusic player;if(!player.start(std::filesystem::path(argv[1]).wstring(),0.75f))return 2;Sleep(250);if(!player.playing()||player.loops()<2)return 3;player.set_volume(0.5f);Sleep(100);if(!player.playing())return 4;auto loops=player.loops();player.set_volume(0.75f);player.stop();if(player.playing())return 5;if(!player.start(std::filesystem::path(argv[1]).wstring(),0.75f))return 6;Sleep(100);if(!player.playing())return 7;player.stop();if(!player.start(std::filesystem::path(argv[1]).wstring(),0.75f,true))return 8;for(int i=0;i<2000&&!player.buffered();++i)Sleep(1);if(!player.buffered()||player.playing())return 9;player.resume();Sleep(100);if(!player.playing())return 10;player.stop();if(player.buffered())return 11;std::cout<<"Native waveOut FLAC loop, volume changes, stop and restart passed; loops="<<loops<<"\n";}

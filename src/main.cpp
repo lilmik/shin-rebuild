@@ -2,6 +2,7 @@
 #include "graphics/viewport.hpp"
 #include "core/scheduler.hpp"
 #include "core/update_clock.hpp"
+#include "core/loading_task.hpp"
 #include "game/menu.hpp"
 #include "game/startup_sequence.hpp"
 #include "game/bootstrap_preload.hpp"
@@ -32,7 +33,7 @@ void save_frame(const std::string& path,const shin::IndexedSurface& frame,const 
 int main(int argc,char** argv){
  bool headless_requested=false;for(int i=1;i<argc;++i)if(std::string(argv[i])=="--headless"||std::string(argv[i])=="--timed-headless")headless_requested=true;
  try {
-  bool headless=false,timed_headless=false,skip_intro=false,fresh_start=false;int frames=0,window_width=640,window_height=480,speed_override=-1,boss_stage=-1;std::string archive="assets/RESOURCE.RES",output,initial="splash",script_path,trace_path,settings_override;
+  bool headless=false,timed_headless=false,skip_intro=false,fresh_start=false;int frames=0,window_width=1280,window_height=720,speed_override=-1,boss_stage=-1;std::string archive="D:\\ws_vs\\lbxx\\lbxx_asset\\RESOURCE.RES",output,initial="splash",script_path,trace_path,settings_override;
   const auto application_dir=std::filesystem::absolute(argv[0]).parent_path();
   if(std::filesystem::is_regular_file(application_dir/"assets"/"RESOURCE.RES"))archive=(application_dir/"assets"/"RESOURCE.RES").string();
   for(int i=1;i<argc;++i){std::string a=argv[i];if(a=="--fresh-start")fresh_start=true;else if(a=="--headless")headless=true;else if(a=="--timed-headless"){headless=true;timed_headless=true;}else if(a=="--speed-ms"&&i+1<argc)speed_override=std::stoi(argv[++i]);
@@ -44,9 +45,11 @@ int main(int argc,char** argv){
   shin::AssetStore assets(archive);shin::IndexedSurface frame(viewport.logical_width,viewport.logical_height);frame.origin_x=viewport.origin_x;frame.origin_y=viewport.origin_y;auto palette=assets.palette("ss.pal");
   shin::Scheduler scheduler;shin::SplashSequence splash;std::unique_ptr<shin::MainMenu> menu;
   shin::InputState silent_input;std::unique_ptr<shin::platform::NativeWindow> window;
-  if(!headless)window=std::make_unique<shin::platform::NativeWindow>(L"SHIN - Windows MVP",window_width,window_height);
+  if(!headless)window=std::make_unique<shin::platform::NativeWindow>(L"蜡笔小新1-重构版",window_width,window_height);
   shin::platform::GameAudio audio(std::filesystem::path(archive).parent_path(),headless);
   if(!audio.load_inmm_playlist())throw std::runtime_error("missing _inmm.ini music playlist");
+  auto loading_pump=[&]{if(window)window->pump();};
+  shin::loading_task([&]{if(!audio.prepare_track(2))throw std::runtime_error("startup music buffering failed");assets.preload_all_images();},loading_pump);
   std::unique_ptr<shin::LevelRuntime> level;
   std::unique_ptr<shin::StageIntro> level_intro;
   int ticks=0;const auto host_started=std::chrono::steady_clock::now();
@@ -63,7 +66,9 @@ int main(int argc,char** argv){
   auto render=[&](const std::vector<shin::MenuDraw>& draws){frame.origin_x=viewport.origin_x;frame.origin_y=viewport.origin_y;frame.clip_core=false;frame.border_rgb.clear();frame.clear();for(const auto& d:draws)frame.blit(assets.image(d.resource),d.x,d.y,d.color_key);};
   std::unique_ptr<shin::StageSelect> select;std::unique_ptr<shin::OptionMenu> options;std::unique_ptr<shin::SettingsMenu> settings;
   shin::SpeedConfig speed;int scrolling_mode=0;
-  const auto progress_path=(_wgetenv(L"LOCALAPPDATA")?std::filesystem::path(_wgetenv(L"LOCALAPPDATA"))/L"SHIN_Rebuild":application_dir/L"saves")/L"progress.dat";shin::ProgressSave progress;if(!fresh_start){progress.load(progress_path);if(!std::filesystem::exists(progress_path.string()+".seeded")&&progress.read(application_dir/"default_progress.dat")){progress.save(progress_path);std::ofstream(progress_path.string()+".seeded")<<"completed default imported";}}
+  const auto progress_path=(_wgetenv(L"LOCALAPPDATA")?std::filesystem::path(_wgetenv(L"LOCALAPPDATA"))/L"SHIN_Rebuild":application_dir/L"saves")/L"progress.dat";shin::ProgressSave progress;if(!fresh_start)progress.load(progress_path);
+  bool save_pending=false,save_warned=false;
+  auto save_progress=[&]{std::string error;save_pending=!progress.try_save(progress_path,error);if(save_pending&&!save_warned){save_warned=true;if(window)MessageBoxW(window->handle(),L"存档写入失败，当前进度仍保留在内存中。退出时会重试，请检查保存目录权限和剩余空间。",L"蜡笔小新1-重构版",MB_OK|MB_ICONWARNING);}};
   const auto settings_path=settings_override.empty()?application_dir/"shin_speed.dat":std::filesystem::path(settings_override);
   std::ifstream speed_file(settings_path,std::ios::binary);
   if(!speed_file)speed_file.open(std::filesystem::path(archive).parent_path()/"RESOURCE"/"speed.dat",std::ios::binary);
@@ -76,13 +81,14 @@ int main(int argc,char** argv){
   std::function<void(int)> show_level,show_bonus;
   show_level=[&](int stage){
    standalone_bonus=false;
+   shin::loading_task([&]{if(!audio.prepare_track(unsigned(stage+4)))throw std::runtime_error("stage music buffering failed");},loading_pump);
 
    auto previous_stats=level?std::make_unique<shin::PlayerPayload>(level->player):nullptr;bool advancing=level&&level->completed()&&stage==level->stage_index()+1;
-   scene=stage==0?"level1_intro":"stage_"+std::to_string(stage);palette=assets.palette("shin.pal");level=std::make_unique<shin::LevelRuntime>(assets,archive,stage);if(advancing){for(unsigned o=0x70;o<=0x84;o+=4)level->player.at(o)=previous_stats->at(o);level->player.at(0x8c)=previous_stats->at(0x8c)+3;for(unsigned o=0xc8;o<=0xfc;o+=4)level->player.at(o)=previous_stats->at(o);}
+   scene=stage==0?"level1_intro":"stage_"+std::to_string(stage);palette=assets.palette("shin.pal");level=shin::loading_task([&]{return std::make_unique<shin::LevelRuntime>(assets,archive,stage);},loading_pump);if(advancing){for(unsigned o=0x70;o<=0x84;o+=4)level->player.at(o)=previous_stats->at(o);level->player.at(0x8c)=previous_stats->at(0x8c)+3;for(unsigned o=0xc8;o<=0xfc;o+=4)level->player.at(o)=previous_stats->at(o);}
    level_intro.reset();if(stage<=6&&!skip_intro){level_intro=std::make_unique<shin::StageIntro>(unsigned(stage));scene=stage==0?"level1_intro":stage==1?"stage2_intro":"flying_intro";}else if(stage==0)scene="level1";
    audio.play_track(unsigned(stage+4));auto first_music=std::make_shared<bool>(true);
    level->clock_ms=now_ms;
-   level->unlock_bonus=[&](int i){if(!standalone_bonus&&progress.unlock(i)&&!fresh_start)progress.save(progress_path);};
+   level->unlock_bonus=[&](int i){if(!standalone_bonus&&progress.unlock(i)&&!fresh_start)save_progress();};
    level->play_sound_file=[&](const std::string&file){audio.play_wav(file);};
    level->play_sound_loop=[&](const std::string&file){audio.play_wav(file,true);};
    level->stop_sound_file=[&](const std::string&file){audio.stop(file);};
@@ -94,7 +100,7 @@ int main(int argc,char** argv){
    };
    scheduler.create(8,[&,stage](shin::Scheduler::Node& self){if(pressed(0x46d4f0)){self.state=2;show_menu();return;}
     if(level_intro){auto f=level_intro->update(now_ms(),pressed(0x46d4e8));render(f.draws);for(auto sound:f.stop_sounds)audio.stop_sound(sound);for(auto sound:f.sounds)audio.play_sound(sound);if(f.action==shin::CutsceneFrame::resume_level){level_intro.reset();scene=stage==0?"level1":"stage_"+std::to_string(stage);}return;}
-    level->tick(input(),frame);if(standalone_bonus&&!level->subgame_active()){standalone_bonus=false;self.state=2;show_select();return;}if(level->completed()){if(progress.complete(level->stage_index())&&!fresh_start)progress.save(progress_path);self.state=2;scene="stage_complete";if(window)SetWindowTextW(window->handle(),L"SHIN - 关卡已通关");if(level->stage_index()<6)show_level(level->stage_index()+1);else show_select();}
+    level->tick(input(),frame);if(standalone_bonus&&!level->subgame_active()){standalone_bonus=false;self.state=2;show_select();return;}if(level->completed()){if(progress.complete(level->stage_index())&&!fresh_start)save_progress();self.state=2;scene="stage_complete";if(window)SetWindowTextW(window->handle(),L"蜡笔小新1-重构版");if(level->stage_index()<6)show_level(level->stage_index()+1);else show_select();}
     else if(level->wants_menu()){self.state=2;show_menu();}});
   };
   show_bonus=[&](int index){show_level(index==3?1:0);standalone_bonus=true;level_intro.reset();scene="bonus_"+std::to_string(index);shin::game::EntityPayload entry;level->call(index==0?0x401d10:index==1?0x41c810:index==2?0x41ba30:index==4?0x4245a0:0x43d120,level->player,entry,{});};
@@ -170,6 +176,7 @@ int main(int argc,char** argv){
    unsigned updates=1;
    const bool gameplay=level&&!level_intro&&!level->paused()&&!level->game_over()&&(scene=="level1"||scene.rfind("stage_",0)==0);
    if(window){auto elapsed=std::chrono::duration_cast<std::chrono::nanoseconds>(frame_started-measured_start).count();updates=update_clock.due(elapsed,gameplay&&speed.speed_value!=16?std::int64_t(std::clamp(speed.speed_value,1,209))*1000000:shin::UpdateClock::display_ns);}
+   if(window&&!window->input().active){updates=0;update_clock.reset();}
    for(unsigned i=0;i<updates;++i){scheduler.tick();++simulation_updates;if(quit)break;}
    if(trace&&level)trace<<ticks<<","<<scene<<","<<level->player.at(8)<<","<<level->player.at(12)<<","<<level->player.at(0x5c)<<","<<level->player.at(0x8c)<<","<<level->player.at(0x70)<<","<<level->camera_x()<<","<<level->camera_y()<<","<<level->completed()<<","<<pressed(0x46d4b0)<<","<<pressed(0x46d4b4)<<","<<pressed(0x46d4b8)<<","<<pressed(0x46d4bc)<<","<<pressed(0x46d4e8)<<","<<pressed(0x46d4ec)<<","<<pressed(0x46d4f0)<<"\n";
    audio.set_music_volume(level&&(level_intro||level->cinematic_active())&&(scene=="level1"||scene=="level1_intro"||scene=="stage2_intro"||scene=="flying_intro"||scene.rfind("stage_",0)==0)?0.50f:0.75f);
@@ -181,9 +188,11 @@ int main(int argc,char** argv){
     // seconds replaying old frames after a window drag or breakpoint.
     auto now=std::chrono::steady_clock::now();if(now>display_deadline+interval*4)display_deadline=now;
     pacer.wait_until(display_deadline);
+    if(frame_times.size()>=4096)frame_times.erase(frame_times.begin(),frame_times.begin()+2048);
     frame_times.push_back(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-frame_started).count());
    }
   }
+  if(save_pending&&!fresh_start)save_progress();
   if(!output.empty())save_frame(output,frame,palette);
   if(level)std::cout<<"player="<<level->player.at(8)<<","<<level->player.at(12)<<" camera="<<level->camera_x()<<","<<level->camera_y()<<"\n";
   std::cout<<"updates="<<ticks<<" scene="<<scene<<" speed_ms="<<std::clamp(speed.speed_value,1,209)<<"\n";

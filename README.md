@@ -6,6 +6,10 @@
 
 项目借助 AI 辅助开发，目前已完成可体验的初步重建，包含七关流程、小游戏、存档与宽屏支持。部分敌人行为、Boss 战和剧情演出仍需继续对照原版，尚不代表逐帧还原完成。
 
+## 当前版本
+
+当前源码版本为 **0.3.6**，Windows 与 Switch 同步。详见 [更新日志](CHANGELOG.md)。源码更新不包含原版游戏素材或二进制发布包。
+
 ## 原作简介
 
 根据目前整理的资料，初代《蜡笔小新～剧场版》由 Reality Weaver 制作，三星电子于 1997 年 7 月发行韩语版。繁体中文版本包括由台湾旭力亞數碼科技股份有限公司代理、于 1999 年 7 月 15 日发行的国语配音版，以及香港百富资讯集团代理的粤语配音版。以上发行信息来自项目作者整理的文档，欢迎提供原始资料补充、校正。
@@ -70,11 +74,13 @@ cmake -S . -B build
 cmake --build build --config Release --target shin_progress
 ```
 
-生成 `build/Release/SHIN_Level1.exe`。资源目录应包含 `RESOURCE.RES`、`RESOURCE/`、`bgm/` 和原版 `_inmm.ini`。将该目录复制到可执行文件旁的 `assets/`，或指定资源档案：
+生成 `build/Release/SHIN_Level1.exe`。资源目录应包含 `RESOURCE.RES`、`RESOURCE/`、`bgm/` 和与音轨路径匹配的 `_inmm.ini`。将该目录复制到可执行文件旁的 `assets/`，或指定资源档案：
 
 ```powershell
 .\build\Release\SHIN_Level1.exe --assets "你的资源目录/RESOURCE.RES" --width 1280 --height 720
 ```
+
+当前发行音频采用 FLAC。BGM 在播放前整曲解码为 PCM，仅保留当前与待切换曲目；图像在启动时预加载。资源需由使用者自行合法准备，仓库不提供音轨转换结果。
 
 方向键移动/跳跃，空格使用武器，Enter 暂停/确认，Esc 返回菜单，F11 切换全屏。
 

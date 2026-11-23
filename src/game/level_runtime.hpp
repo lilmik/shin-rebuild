@@ -350,7 +350,7 @@ public:
   if(music_.update(now_ms())&&play_music)play_music(music_.track());
   for(std::size_t i=0;i<scene_.placements.size();++i){auto&m=scene_.placements[i];if(spawned_[i]||m.cell_x<(camera_x()-target.origin_x)/32||m.cell_x>=(camera_x()-target.origin_x+target.width)/32+1||m.cell_y<(camera_y()-target.origin_y)/32||m.cell_y>=(camera_y()-target.origin_y+target.height)/32+1)continue;
    // Visible scenery expands with the display; combat activation keeps the original 21x16 grid.
-   bool combat=(m.type>=0&&m.type<=2)||m.type==0x12||m.type==31||m.type==36||m.type==32||m.type==0x25||m.type==0x7a||game::Stage2ExtraEnemy::supports(m.type)||game::LaterAdditionalEnemies::supports(m.type)||game::LaterPatrolEnemy::supports(m.type)||game::LaterLargeGuard::supports(m.type)||game::LaterSpecialEnemies::supports(m.type);
+   bool combat=m.type==0x79||(m.type>=0&&m.type<=2)||m.type==0x12||m.type==31||m.type==36||m.type==32||m.type==0x25||m.type==0x7a||game::Stage2ExtraEnemy::supports(m.type)||game::LaterAdditionalEnemies::supports(m.type)||game::LaterPatrolEnemy::supports(m.type)||game::LaterLargeGuard::supports(m.type)||game::LaterSpecialEnemies::supports(m.type);
    if(combat&&(m.cell_x<camera_x()/32||m.cell_x>=camera_x()/32+21||m.cell_y<camera_y()/32||m.cell_y>=camera_y()/32+16))continue;
    if(m.type>=0&&m.type<=2){const char* names[]={"c1_f.app","c2_f.app","c3_f.app"};auto&im=assets_.image(names[m.type]);enemies_->spawn(m.type,m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),short(i));spawned_[i]=true;}
    else if(m.type==0x12){auto&im=assets_.image("ryoko_a2.app");boss_=std::make_unique<game::FirstBoss>(m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),im.width,im.height);spawned_[i]=true;}
@@ -465,7 +465,13 @@ public:
   for(auto&r:later_mechanisms_.respawns){auto it=std::find_if(later_mechanisms_.objects.begin(),later_mechanisms_.objects.end(),[&](auto&o){return o.index==r.index&&o.e.state==2;});if(it!=later_mechanisms_.objects.end()){auto&im=assets_.image(LaterMechanisms::resource(it->type));rearm_scenery(r.index,r.type,r.x,r.y,im.width,im.height);}}later_mechanisms_.respawns.clear();later_mechanisms_.objects.erase(std::remove_if(later_mechanisms_.objects.begin(),later_mechanisms_.objects.end(),[](auto&o){return o.e.state==2;}),later_mechanisms_.objects.end());
   for(auto&r:later_springs_.respawns){auto&im=assets_.image(LaterSprings::resource(r.type));rearm_scenery(r.index,r.type,r.x,r.y,im.width,im.height);}later_springs_.respawns.clear();later_springs_.objects.erase(std::remove_if(later_springs_.objects.begin(),later_springs_.objects.end(),[](auto&o){return o.e.state==2;}),later_springs_.objects.end());
   additional_enemies_.tick(camera_x(),camera_y(),player,assets_,target,world,play_sound_file);for(auto*e:additional_enemies_.targets()){auto r=game::LaterAdditionalEnemies::rectangle(*e);for(auto&o:objects_->objects())if(!o.removed&&o.payload.kind==0x3f&&game::intersects(r,e->at(4),e->at(8),{0,0,15,15},o.payload.at(4),o.payload.at(8)))additional_enemies_.trigger(*e,o.payload.at(0x40)&255);if(game::intersects(rect,player.at(8),player.at(12),r,e->at(4),e->at(8)))game::respond_player_object(player,*e,*this);for(auto&s:shots_)if(s->owner_state==0&&game::intersects({s->at(0x14),s->at(0x18),s->at(0x1c),s->at(0x20)},s->at(4),s->at(8),r,e->at(4),e->at(8))&&additional_enemies_.hurt(*e)){s->owner_state=2;award_hit();}}
-  for(auto&d:falling_dolls_){d.tick(camera_x(),camera_y(),assets_,target);if(d.updated_this_tick&&d.e.state==0){int material=world.body(LaterFallingDoll::rectangle(),d.e.at(4),d.e.at(8));if(material)d.terrain(world,material);if(d.e.state!=2&&game::intersects(rect,player.at(8),player.at(12),LaterFallingDoll::rectangle(),d.e.at(4),d.e.at(8)))game::respond_player_object(player,d.e,*this);}for(auto id:d.sounds){sound(globals_[0x473920]++%2?0x473924:id);}d.sounds.clear();}
+  for(auto&d:falling_dolls_){
+   d.tick(camera_x(),camera_y(),assets_,target,now_ms());
+   if(d.updated_this_tick&&d.e.state==0){int material=world.body(LaterFallingDoll::rectangle(),d.e.at(4),d.e.at(8));if(material)d.terrain(world,material);}
+   // Contact remains live between stone steps, while terrain rebounds run once.
+   if(d.active_this_tick&&d.e.state==0&&game::intersects(rect,player.at(8),player.at(12),LaterFallingDoll::rectangle(),d.e.at(4),d.e.at(8)))game::respond_player_object(player,d.e,*this);
+   for(auto id:d.sounds)sound(globals_[0x473920]++%2?0x473924:id);d.sounds.clear();
+  }
   // Safety activation follows the player's swept corridor, not a lagging vertical camera.
   for(std::size_t i=0;i<scene_.placements.size();++i){auto&m=scene_.placements[i];if(spawned_[i]||!LaterSprings::supports(m.type))continue;if(m.cell_x*32<std::min(old_player_x,player.at(8))-96||m.cell_x*32>std::max(old_player_x,player.at(8))+128||m.cell_y*32<std::min(old_player_y,player.at(12))-128||m.cell_y*32>std::max(old_player_y,player.at(12))+160)continue;auto&im=assets_.image(LaterSprings::resource(m.type));later_springs_.spawn(m.type,m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),int(i));spawned_[i]=true;}
   later_springs_.tick(camera_x(),camera_y(),assets_,target);for(auto*e:later_springs_.targets()){if(spring_swept_contact(player,*e,*this,old_player_x,old_player_y,e->at(0x40),e->at(0x44)))continue;if(game::intersects(rect,player.at(8),player.at(12),{0,0,56,10},e->at(4),e->at(8)))game::respond_player_object(player,*e,*this);}
@@ -495,6 +501,10 @@ public:
   for(auto*enemy:enemies_->targets())if(enemy->state!=(enemy->map_type==0?3:4))companion_targets.push_back({enemy->x,enemy->y,{28,14,46,71},[&,enemy]{enemies_->defeat(*enemy);award_hit();}});
   if(boss_&&boss_->payload.state==0&&boss_->payload.at(0x50)!=4){auto&e=boss_->payload;companion_targets.push_back({e.at(4),e.at(8),{e.at(0x20),e.at(0x24),e.at(0x28),e.at(0x2c)},[&]{sound(boss_->hurt());award_hit();}});}
   if(later_actors_)for(auto*e:later_actors_->targets())if(!game::Stage2Actors::dying(*e))companion_targets.push_back({e->at(4),e->at(8),game::Stage2Actors::rectangle(*e),[&,e]{if(later_actors_->hurt(*e))award_hit();}});
+  // Shiro must use the same later-stage target registry as the other weapons.
+  visit_later_weapon_targets([&](game::EntityPayload&e,const game::CollisionRect&r,auto hurt){
+   companion_targets.push_back({e.at(4),e.at(8),r,[this,hurt]{if(hurt())award_hit();}});
+  });
   companion_.tick(player,camera_x(),camera_y(),assets_,target,companion_targets);
   if(abilities_){abilities_->tick(camera_x(),camera_y(),target);for(auto&file:abilities_->sounds)if(play_sound_file)play_sound_file(file);abilities_->sounds.clear();}
   globals_[0x46cda8]=(companion_.active()||(abilities_&&abilities_->active()))?1:0;

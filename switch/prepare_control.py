@@ -15,9 +15,10 @@ while p<len(raw):
 assert dimensions==(256,256)
 languages=['AmericanEnglish','BritishEnglish','Japanese','French','German','LatinAmericanSpanish','Spanish','Italian','Dutch','CanadianFrench','Portuguese','Russian','Korean','TraditionalChinese','SimplifiedChinese','BrazilianPortuguese']
 b=bytearray((control/'control.nacp').read_bytes());assert len(b)==16384
+title='蜡笔小新1-重构版'.encode('utf-8');assert len(title)<0x200
 for i in range(16):
- offset=i*0x300;b[offset:offset+0x300]=bytes(0x300);b[offset:offset+8]=b'SHIN MVP';publisher=b'SHIN Reconstruction';b[offset+0x200:offset+0x200+len(publisher)]=publisher
-struct.pack_into('<I',b,0x302c,0xffff);b[0x3060:0x3070]=b'0.2.42'.ljust(16,b'\0');(control/'control.nacp').write_bytes(b)
+ offset=i*0x300;b[offset:offset+0x300]=bytes(0x300);b[offset:offset+len(title)]=title;publisher=b'SHIN Reconstruction';b[offset+0x200:offset+0x200+len(publisher)]=publisher
+struct.pack_into('<I',b,0x302c,0xffff);b[0x3060:0x3070]=b'0.3.6'.ljust(16,b'\0');(control/'control.nacp').write_bytes(b)
 for language in languages:shutil.copyfile(icon,control/f'icon_{language}.dat')
-print(json.dumps({'jpeg':[256,256],'languages':len(languages),'supported_language_mask':'0xffff','display_version':'0.2.42','title_id_unchanged':'0100f55100020000'}))
+print(json.dumps({'jpeg':[256,256],'languages':len(languages),'supported_language_mask':'0xffff','display_version':'0.3.6','title_id_unchanged':'0100f55100020000'}))
 

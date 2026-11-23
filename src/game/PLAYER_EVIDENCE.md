@@ -1,0 +1,35 @@
+# Player payload evidence and partial rewrite
+
+Global 00473d20 assigned only in 00405b10, allocating 0x110 bytes. 0043f120 creates kind100 in scheduler group8, callbacks update405cf0/destroy407760, spawn tiles from77bf4c/77bf50. Stage switch43ee50 -> stage-specific asset setup43e930..43ed60; gameplay setup43f120 creates player independently. 43ee50 itself is save progression + stage setup, not player constructor.
+
+Confirmed offsets: +00 pool token; +04 owner process pointer; +08/+0c world pixel x/y (tile<<5); +10/+14 surface-related dimensions supplied from globals; +18 animation table; +1c frame; +20 ticks; +24 frame count; +28 frame delay; +2c collision descriptor starts; +3c collision callback registration result (434b40 with x/y pointers, callback4098f0); +40 registration result(431050 with callback40d4c0); +44/+48 camera-relative render x/y; +4c/+50 previous x/y; +54 horizontal impulse; +58 vertical velocity; +5c state ID; +64 collision latch; +88 facing; +8c unknown(5); +98 Enter latch; +b0 unknown(3); +b8 blink/invulnerability timer candidate; +100 enables common-tail horizontal integration.
+
+Constructor defaults: x/y tiles<<5, collision descriptor words [24,14,50,71], animation reset40d730 table45c714/frame0/ticks0/count1/delay100/state0, facing1. Many other words explicitly zeroed; some offsets are NOT initialized by constructor and must not be invented as known state.
+
+player_state.hpp implements only verified scalar subset and common tail of round2/round3 405cf0. State switch (many dozens of modes), input transitions, collision response, camera, rendering and cleanup remain outside. Common tail reduces impulse toward0; increases vy to11; conditional x integration when field100==1; always integrates y; clamps negative coordinates; animation advances only ticks>delay; collision latch reset; Enter-release pause request RETURNS before blink decrement. It does not emulate pointer layout, allocator tokens or original surfaces. Call set_camera/render BEFORE common_tail to match original drawing of pre-integration position.
+
+No broad labels such as vx assigned to +10/+14: those are initialized from dimensions and are not velocity. +54 is observed common-tail impulse, while state-specific movement can also directly modify x/y. Do not claim this subset alone implements walking/jumping.
+
+MSVC x64 C++17 /W4 verified via verify_player_state.cmd; checks spawn scaling, camera, impulse integration, gravity limit, exact ==1 flag, nonnegative clamp, strict animation threshold, and pause-return timer ordering.
+
+## Full main-controller control-flow reconstruction
+
+player_controller.hpp/.cpp now implement every 18 switch case present in round3 405cf0 (0,1,2,4..17,94), render gating, common integration/animation tail, pause/death/reload/stage-advance events and early returns. No case3 exists in source; unmatched states perform only common tail as original. Eighteen pure state setter helpers40d730..40daa0 are implemented as exact field writes. tools/rebuild_player_controller.py preserves source conditions and original integer offset identifiers to permit auditing. Required external functions are listed in player_dependencies.json.
+
+PlayerContext is an explicit mandatory interface, not a default no-op backend. It must implement global(address) shared state, camera coordinates, render(payload) using original animation lookup table, and call(functionID,payload,args). Original function pointers/strings are passed as numeric identity IDs, never dereferenced as native addresses. Argument0 represents payload base ONLY for original signatures accepting player pointer; descriptor offset0x2c is similarly a reference marker for collision APIs. The global accessor is writable because the original controller changes group flags/stage state directly. Implementations must reject unsupported IDs rather than silently ignore them. CollisionWorld.ground handles431d60; directional probes431f90/4320c0, projectile entity constructors42d640/42fc60, scene/menu scheduler events and rendering remain host dependencies.
+
+PlayerPayload stores68 signed32 words (0x110 bytes) plus owner state separately; it is a semantic data carrier, not an ABI-compatible original process. Its zero initialization is a construction convenience, NOT recovered initial values. A host must initialize from405b10 before real gameplay. Signed arithmetic in generated normal-range gameplay expressions assumes original ordinary coordinate/counter bounds; not every 32-bit overflow edge has been normalized to wrap semantics. Rendering is delegated with payload after screen coordinates are assigned and before integration. Host must apply blink/facing/animation table asset rules.
+
+The source's unusual case11 projectile branch is retained: projectile mode1 dispatch happens in the ELSE of latch==0, unlike other grounded states. Tests explicitly lock this behavior, rather than "fix" a possible original quirk.
+
+verify_player_controller.cmd compiles controller and tests with MSVC x64 C++17 /W4. Tests cover jump initialization(-15 before gravity), unsupported-ground falling(4 before gravity), landing state5, ammo/Space-edge, case11 odd latch dispatch, death group0..9 cleanup with early return, rendering before position integration, and state94 timer40 returning to state12. Host test doubles explicitly implement/reject function IDs; they do not establish complete world/entity integration.
+
+## Actual player assets, animation table and constructor scalar writes
+
+player_animation.hpp contains the exact41 resources at45c3e0..45c714 stride20 and43 indices45c714..45c7bc. This extends past requested45c7a4 because helper40da70 uses45c7a8 with4 frames, and40daa0 uses45c7b8 with2 frames. Names are normalized .raw->.app exactly like the resource loader. player_animation_data.json retains recovered values.
+
+4059c0 loads all41 in sequence, retaining last width/height globally, so405b10 initializes fields+10/+14 to huk2.app dimensions76x72. initialize_player_payload writes every explicit scalar constructor assignment plus40d730's final reset, leaving allocation/owner/registry handle fields and genuinely unspecified words untouched. Explicitly uninitialized blink+b8 must not be claimed zero by this constructor. Host pool/reset semantics still matter.
+
+Actual render_player selects image by animation-table ID+frame, draws camera-relative+44/+48 with color key0xfe. Facing==1 chooses original copy4334a0; every other facing chooses mirrored433540. dumpbin433540 assembly confirms each source column width-1-column, no vertical reversal. Original445210 atlas packing concatenates frame widths and updates source rectangles; drawing individual source surfaces is pixel-equivalent for this full-frame player path.
+
+verify_player_animation.cmd loads all41 real resources, checks constructor writes against a sentinel-filled payload (thus checks unknown fields remain untouched), known animation sequences, original frame pixel identity and every mirrored pixel. MSVC x64 C++17 /W4 build and test passed.

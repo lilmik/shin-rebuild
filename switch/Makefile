@@ -43,9 +43,9 @@ SOURCES		:=	. ../src/game
 DATA		:=	data
 INCLUDES	:=	../src
 ROMFS	:=	romfs
-APP_TITLE := SHIN MVP
+APP_TITLE := 蜡笔小新1-重构版
 APP_AUTHOR := SHIN Reconstruction
-APP_VERSION := 0.2.42
+APP_VERSION := 0.3.6
 APP_TITLEID := 0100f55100020000
 
 #---------------------------------------------------------------------------------

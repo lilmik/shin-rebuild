@@ -39,7 +39,7 @@ struct InputState {
         std::uint32_t address=0,value=0;
         switch(msg) {
         case 2:quit_requested=true;return true;
-        case 0x1c:active=wparam;if(wparam==1)cursor_hide_requested=true;return true;
+        case 0x1c:active=wparam;if(wparam==0)values.fill(0);if(wparam==1)cursor_hide_requested=true;return true;
         case 0x100:case 0x101:address=key_address(wparam);value=(msg==0x100);break;
         case 0x201:case 0x202:address=0x46d4c0u;value=(msg==0x201);break;
         case 0x204:case 0x205:address=0x46d4c4u;value=(msg==0x204);break;

@@ -30,3 +30,9 @@ title.keys
 *.ppm
 *.dat
 !default_progress.dat
+
+# Lossless audio and local output
+*.flac
+*.ico
+!resources/windows/living-room.ico
+*.pfs0
