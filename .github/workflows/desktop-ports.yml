@@ -3,6 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: [port/linux-macos-universal]
+concurrency:
+  group: desktop-ports-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -19,7 +22,7 @@ jobs:
           name: SHIN-Linux-x86_64
           path: dist/*.tar.gz
   macos:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
