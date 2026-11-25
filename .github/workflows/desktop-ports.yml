@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev libgl1-mesa-dri
-      - run: cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release && cmake --build build/linux --parallel 3 --target shin_portable
+      - run: cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release -DSHIN_FETCH_SDL=ON && cmake --build build/linux --parallel 3 --target shin_portable
       - run: build/linux/platforms/desktop/SHIN --help
       - run: mkdir -p dist/SHIN_Linux_0.3.26/assets && cp build/linux/platforms/desktop/SHIN dist/SHIN_Linux_0.3.26/ && cp platforms/desktop/README.md LICENSE dist/SHIN_Linux_0.3.26/ && tar -C dist -czf dist/SHIN_Linux_0.3.26_source-only-assets-excluded.tar.gz SHIN_Linux_0.3.26
       - uses: actions/upload-artifact@v4

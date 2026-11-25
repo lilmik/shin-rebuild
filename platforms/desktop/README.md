@@ -4,9 +4,9 @@ Uses SDL2, SDL2_mixer and the shared OpenGL GPU presenter. Gameplay, maps, FLAC 
 
 ## Linux
 
-Debian/Ubuntu build dependencies: `build-essential cmake pkg-config libsdl2-dev libsdl2-mixer-dev`. Build: `cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release`, then `cmake --build build/linux --parallel 3 --target shin_portable`. Run `build/linux/platforms/desktop/SHIN --assets /path/to/assets`.
+Debian/Ubuntu build dependencies: `build-essential cmake pkg-config libsdl2-dev libsdl2-mixer-dev`. Build: `cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release -DSHIN_FETCH_SDL=ON`, then `cmake --build build/linux --parallel 3 --target shin_portable`. Run `build/linux/platforms/desktop/SHIN --assets /path/to/assets`.
 
-Requires a working OpenGL 3.3 desktop driver. Local Debian 12 x86_64 builds require glibc 2.36 or newer and SDL2/SDL2_mixer runtime libraries. GitHub Ubuntu builds may require newer glibc; build locally for older distributions.
+Requires a working OpenGL 3.3 desktop driver. Local Debian 12 x86_64 builds require glibc 2.36 or newer ; release builds statically link SDL2/SDL2_mixer, so those two runtime packages are not required. System display/audio drivers remain required. GitHub Ubuntu builds may require newer glibc; build locally for older distributions.
 
 ## macOS Universal
 
