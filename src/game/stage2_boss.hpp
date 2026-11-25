@@ -5,7 +5,13 @@
 #include <cstdlib>
 namespace shin::game {
 class Stage2Boss {
+ int patrol_left_=0,patrol_right_=0;bool patrol_bounded_=false;
+ int turn_hold_=0;
+ unsigned last_update_=0;bool clock_started_=false;
 public:
+ void after_terrain(){auto&e=payload;if(cinematic||e.at(0x50)==7)return;if((e.at(0x50)==1||e.at(0x50)==2)&&e.at(0x48)!=0&&e.at(4)==e.at(0x40)){int direction=e.at(0x50);if(direction==1)h438610();else h4385e0();turn_hold_=12;}}
+ void set_patrol_bounds(int left,int right){if(left<right){patrol_left_=left;patrol_right_=right;patrol_bounded_=true;}}
+ bool update_due(unsigned now){if(cinematic){clock_started_=false;return true;}if(!clock_started_){clock_started_=true;last_update_=now;return true;}if(unsigned(now-last_update_)<33)return false;last_update_=now;return true;}
  struct ProjectileEvent {int x,y,vx,vy;unsigned callback;};
  EntityPayload payload;bool respawn_requested=false,defeated=false;std::vector<ProjectileEvent>projectiles;std::vector<int>spawn_requests;std::vector<std::string>sound_requests;
 static inline const char*names[]={"cht141aa.raw","cht141ab.raw","cht141ac.raw","cht141ad.raw","cht141ba.raw","cht141bb.raw","cht141bc.raw","cht141bd.raw","cht143aa.raw","cht143ab.raw","cht143ac.raw","cht143ad.raw","cht143ba.raw","cht143bb.raw","cht143bc.raw","cht143bd.raw","cht144aa.raw","cht144ab.raw","cht144ac.raw"};
@@ -38,7 +44,7 @@ void h438610(){auto&e=payload;
   e.at(0x1c) = 10;
   return;
 }
-void h438640(){auto&e=payload;
+void h438640(){auto&e=payload;e.at(0x58)=0;
   int uVar1;
   
   e.at(0xc) = 0x46e378;
@@ -60,11 +66,11 @@ void h438670(){auto&e=payload;
   e.at(0x1c) = 0x14;
 sound_requests.push_back("RESOURCE/dem-tib.wav");}
 void hurt(){h438670();}
-void platform(int d){if(payload.at(0x50)==7)return;if(d>=0&&d<=2){switch(d){case 0:h4385b0();break;case 1:h4385e0();break;case 2:h438610();break;}}}
+void platform(int d){if(payload.at(0x50)==7||turn_hold_>0)return;if(d>=0&&d<=2){switch(d){case 0:break;case 1:h4385e0();break;case 2:h438610();break;}}}
 bool cinematic=false;
  void cinematic_pose(int state){auto&e=payload;e.at(0x50)=state;e.at(0x10)=e.at(0x14)=0;e.at(0xc)=state==8?0x46e3d0:0x46e3d8;e.at(0x18)=state==8?2:1;e.at(0x1c)=10;}
  void cinematic_tick(int cx,int cy,AssetStore&a,IndexedSurface&frame){auto&e=payload;e.at(0x48)=0;e.at(0x38)=e.at(4)-cx;e.at(0x3c)=e.at(8)-cy;frame.blit(a.image(e.at(0x50)==8&&e.at(0x10)==1?"2#422.app":"2#421.app"),e.at(0x38),e.at(0x3c));if(e.at(0x4c)<11)++e.at(0x4c);e.at(8)+=e.at(0x4c);if(++e.at(0x14)>e.at(0x1c)){e.at(0x14)=0;if(++e.at(0x10)>=e.at(0x18))e.at(0x10)=0;}}
-void tick(int cx,int cy,int px,int pw,AssetStore&a,IndexedSurface&frame){if(payload.state==2)return;auto&e=payload;if(cinematic){cinematic_tick(cx,cy,a,frame);return;}
+void tick(int cx,int cy,int px,int pw,AssetStore&a,IndexedSurface&frame){if(turn_hold_>0)--turn_hold_;if(payload.state==2)return;auto&e=payload;if(cinematic){cinematic_tick(cx,cy,a,frame);return;}
   int iVar1=0;
   int iVar2;
   int iVar3;
@@ -74,13 +80,13 @@ void tick(int cx,int cy,int px,int pw,AssetStore&a,IndexedSurface&frame){if(payl
   e.at(0x44) = e.at(8);
   switch(e.at(0x50)) {
   case 0:
-    if (200 < e.at(0x58)) {
+    if (300 < e.at(0x58)) {
       h438640();
       e.at(0x58) = 0;
     }
     break;
   case 1:
-    if (200 < e.at(0x58)) {
+    if (300 < e.at(0x58)) {
       h438640();
       e.at(0x58) = 0;
     }
@@ -88,7 +94,7 @@ void tick(int cx,int cy,int px,int pw,AssetStore&a,IndexedSurface&frame){if(payl
     e.at(0x60) = 0;
     break;
   case 2:
-    if (200 < e.at(0x58)) {
+    if (300 < e.at(0x58)) {
       h438640();
       e.at(0x58) = 0;
     }
@@ -154,12 +160,7 @@ void tick(int cx,int cy,int px,int pw,AssetStore&a,IndexedSurface&frame){if(payl
       }
     }
   }
-  e.at(0x38) = e.at(4) - cx;
-  iVar3 = e.at(8) - cy;
-  e.at(0x3c) = iVar3;
-  frame.blit(a.image(names[indices[(e.at(0xc)-4645700)/4+e.at(0x10)]]),e.at(4)-cx,e.at(8)-cy,true,0,0,-1,-1,e.at(0x60)!=0);
-
-  frame.blit(a.image("bsfc21.app"),10,50);for(int hp=0;hp<e.at(0x6c);++hp)frame.blit(a.image("rlife.app"),50+20*hp,50);
+  draw(cx,cy,a,frame);
   if (0 < e.at(0x48)) {
     e.at(0x48) = e.at(0x48) + -1;
   }
@@ -171,6 +172,10 @@ void tick(int cx,int cy,int px,int pw,AssetStore&a,IndexedSurface&frame){if(payl
   }
   e.at(4) = e.at(4) + e.at(0x48);
   e.at(8) = e.at(8) + e.at(0x4c);
+  if(patrol_bounded_&&e.at(0x50)!=7){
+   if(e.at(4)+38<patrol_left_){e.at(4)=patrol_left_-38;e.at(0x48)=0;if(e.at(0x50)==6)e.at(0x5c)=2;else h438610();}
+   if(e.at(4)+113>patrol_right_){e.at(4)=patrol_right_-113;e.at(0x48)=0;if(e.at(0x50)==6)e.at(0x5c)=1;else h4385e0();}
+  }
   iVar3 = e.at(0x14) + 1;
   e.at(0x14) = iVar3;
   if (e.at(0x1c) < iVar3) {
@@ -183,6 +188,14 @@ void tick(int cx,int cy,int px,int pw,AssetStore&a,IndexedSurface&frame){if(payl
   }
   e.at(0x58) = e.at(0x58) + 1;
   return;
+}
+void draw(int cx,int cy,AssetStore&a,IndexedSurface&frame){auto&e=payload;int iVar3;
+  e.at(0x38) = e.at(4) - cx;
+  iVar3 = e.at(8) - cy;
+  e.at(0x3c) = iVar3;
+  frame.blit(a.image(names[indices[(e.at(0xc)-4645700)/4+e.at(0x10)]]),e.at(4)-cx,e.at(8)-cy,true,0,0,-1,-1,e.at(0x60)!=0);
+
+  frame.blit(a.image("bsfc21.app"),10,50);for(int hp=0;hp<e.at(0x6c);++hp)frame.blit(a.image("rlife.app"),50+20*hp,50);
 }
 void terrain(const CollisionWorld&world,int param_2){auto&e=payload;auto probe=[&](int,int x,int y){return world.body({e.at(0x20),e.at(0x24),e.at(0x28),e.at(0x2c)},x,y);};
   int iVar1=0;

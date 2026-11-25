@@ -14,6 +14,9 @@ struct IndexedSurface {
  bool clip_core=false;std::vector<std::uint32_t> border_rgb;
  std::vector<std::uint8_t> wallpaper;
  std::vector<std::uint8_t> pixels;
+ // Optional opaque RGB overrides for manually edited artwork. Kept separate
+ // from the game's indexed pixels so edits are not quantized to the old palette.
+ std::vector<std::uint32_t> color_pixels;
  struct PlayerDraw{const IndexedSurface*image;int x,y,sx,sy,w,h;bool keyed,flip;};
  std::vector<PlayerDraw> player_draws;
  void blit_player(const IndexedSurface&image,int x,int y,bool keyed=true,int sx=0,int sy=0,int w=-1,int h=-1,bool flip=false){blit(image,x,y,keyed,sx,sy,w,h,flip);player_draws.push_back({&image,x+origin_x,y+origin_y,sx,sy,w,h,keyed,flip});}
@@ -24,7 +27,7 @@ struct IndexedSurface {
   if(w<0||h<0||std::uint64_t(w)*h>268435456)throw std::runtime_error("invalid surface size");
   pixels.assign(std::size_t(w)*h,fill);
  }
- void clear(std::uint8_t color=0){player_draws.clear();std::fill(pixels.begin(),pixels.end(),color);}
+ void clear(std::uint8_t color=0){player_draws.clear();std::fill(pixels.begin(),pixels.end(),color);std::fill(border_rgb.begin(),border_rgb.end(),0);}
  void blit(const IndexedSurface& source,int x,int y,bool keyed=true,int sx=0,int sy=0,int w=-1,int h=-1,bool flip_x=false){
   // Preserve native UI art at one scale; extend its background outside the
   // original design rectangle using the same unscaled resource tiles.
@@ -39,10 +42,13 @@ struct IndexedSurface {
   int left=std::max(0,-x),top=std::max(0,-y);
   int right=std::min(w,width-x),bottom=std::min(h,height-y);
   if(clip_core){left=std::max(left,origin_x-x);top=std::max(top,origin_y-y);right=std::min(right,origin_x+640-x);bottom=std::min(bottom,origin_y+480-y); }
+  if(!source.color_pixels.empty()&&border_rgb.empty())border_rgb.assign(pixels.size(),0);
   for(int j=top;j<bottom;++j){int yy=sy+j;if(yy<0||yy>=source.height)continue;
    for(int i=left;i<right;++i){int xx=sx+(flip_x?w-1-i:i);if(xx<0||xx>=source.width)continue;
     auto c=source.pixels[std::size_t(yy)*source.width+xx];
-    if(!keyed||c!=0xfe)pixels[std::size_t(y+j)*width+x+i]=c;
+    if(!keyed||c!=0xfe){auto dest=std::size_t(y+j)*width+x+i;pixels[dest]=c;
+     if(!border_rgb.empty())border_rgb[dest]=source.color_pixels.empty()?0:source.color_pixels[std::size_t(yy)*source.width+xx];
+    }
    }
   }
  }

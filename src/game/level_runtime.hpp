@@ -92,7 +92,11 @@ class LevelRuntime:public PlayerContext,public ProjectileContext,public game::Ob
  void update_later_sequence(bool action,bool advance){
   if(!later_actors_)return;
   for(int kind:later_actors_->spawn_requests){
-   if(kind==0x31){if(boss_intro_consumed_)continue;boss_intro_consumed_=true;auto*b=later_actors_->boss();if(!b)throw std::runtime_error("missing stage2 boss");later_sequence_.begin_intro(*b,now_ms(),player.at(0x5c),true);}
+   if(kind==0x31){if(boss_intro_consumed_)continue;boss_intro_consumed_=true;auto*b=later_actors_->boss();if(!b)throw std::runtime_error("missing stage2 boss");// Bind the arena to original map direction markers, independent of widescreen visibility.
+    int left=-1,right=-1,bx=b->payload.at(4)+76,by=b->payload.at(8)+189;
+    for(const auto&o:objects_->objects())if(o.payload.kind==0x3f&&std::abs(o.payload.words[2]-by)<96){int x=o.payload.words[1],direction=o.payload.words[16]&255;if(direction==2&&x<bx)left=std::max(left,x);if(direction==1&&x>bx&&(right<0||x<right))right=x+15;}
+    if(left>=0&&right>left)b->set_patrol_bounds(left,right);
+    later_sequence_.begin_intro(*b,now_ms(),player.at(0x5c),true);}
    else if(kind==0x2d){if(boss_ending_consumed_)continue;boss_ending_consumed_=true;later_sequence_.begin_ending(now_ms(),player.at(0x5c),true);}
    else throw std::runtime_error("unknown stage2 sequence");
   }later_actors_->spawn_requests.clear();
@@ -141,18 +145,48 @@ class LevelRuntime:public PlayerContext,public ProjectileContext,public game::Ob
  }
  double scene_view_left_=0,scene_view_top_=0;bool scene_panning_=false;unsigned scene_pan_time_=0;int scene_pan_width_=0;
  void pan_scene_view(IndexedSurface&target){
-  int left=player.at(8),right=left+player.at(0x10),top=player.at(12),bottom=top+player.at(0x14);bool focus=false,vertical_focus=false;
-  if(dialogues_.active())for(auto&a:dialogues_.actors)if(!a.removed){left=std::min(left,a.x);right=std::max(right,a.x+80);focus=true;}
-  if(later_monologues_.active()&&later_monologues_.type()==0x72)for(auto*e:special_enemies_.targets())if(e->at(0x50)==5){left=std::min(left,e->at(4));right=std::max(right,e->at(4)+100);focus=true;}
-  if(final_encounter_.active()){int l=0,r=0,t=0,b=0;if(final_encounter_.focus_bounds(l,r,t,b)){left=std::min(left,l);right=std::max(right,r);top=std::min(top,t);bottom=std::max(bottom,b);vertical_focus=true;focus=true;}else{right=std::max(right,player.at(8)+560);focus=true;}}
-  int normal=camera_x()-target.origin_x,desired=focus?std::clamp((left+right-target.width)/2,0,std::max(0,view_right_edge()-target.width)):normal;unsigned now=now_ms();
+  int left=player.at(8),right=left+player.at(0x10),top=player.at(12)-9,bottom=player.at(12)+player.at(0x14);
+  bool focus=cinematic_active(),vertical_focus=focus;
+  auto include=[&](int x,int y,int w,int h){left=std::min(left,x);right=std::max(right,x+w);top=std::min(top,y);bottom=std::max(bottom,y+h);};
+  if(dialogues_.active())for(auto&a:dialogues_.actors)if(!a.removed){
+   const char*const*names=a.identity==0?dialogue_data::n0:a.identity==1?dialogue_data::n1:a.identity==2?dialogue_data::n2:dialogue_data::n3;
+   for(int i=0;i<(a.identity<2?4:a.identity==2?3:2);++i){const auto&im=assets_.image(names[i]);include(a.x,a.y,im.width,im.height);}
+  }
+  if(later_sequence_.active()&&later_actors_)if(auto*b=later_actors_->boss();b&&b->cinematic){
+   auto&e=b->payload;const auto&im=assets_.image("2#421.app");include(e.at(4),e.at(8),im.width,im.height);
+  }
+  if(jungle_intro_.active())for(auto&b:jungle_bosses_)if(b&&!b->defeated){auto&e=b->payload;include(e.at(4),e.at(8),e.at(0x64),e.at(0x68));}
+  if(sixth_scenes_.active())sixth_scenes_.visit_actors([&](int type,int x,int y){
+   const char*name=type==0x3b?"mrh1aa.raw":type==0x29?"ana2aa.raw":type==0x27?"7#731.raw":"7#741.raw";
+   const auto&im=assets_.image(name);include(x,y,im.width,im.height);
+  });
+  if(later_monologues_.active()&&later_monologues_.type()==0x72)for(auto*e:special_enemies_.targets())if(e->at(0x50)==5){
+   // The ghost enters from above; frame its landing area without following its birth Y.
+   include(e->at(4),std::max(e->at(8),bottom-200),std::max(100,e->at(0x64)),200);
+  }
+  if(gate_.active()){const auto&im=assets_.image("recall.app");include(player.at(8),player.at(12)-182,im.width,im.height);}
+  if(final_encounter_.active()){int l=0,r=0,t=0,b=0;if(final_encounter_.focus_bounds(l,r,t,b))include(l,t,r-l,b-t);else include(player.at(8)+460,player.at(12),100,player.at(0x14));}
+  // Pan only as far as needed to contain the cast, preserving the normal composition.
+  auto fit=[](int normal,int lo,int hi,int extent,int world){
+   constexpr int margin=16;int low=hi+margin-extent,high=lo-margin;
+   int desired=low<=high?std::clamp(normal,low,high):(lo+hi-extent)/2;
+   return std::clamp(desired,0,std::max(0,world-extent));
+  };
+  int normal=camera_x()-target.origin_x,desired=focus?fit(player.at(8)+player.at(0x10)/2-target.width/2,left,right,target.width,view_right_edge()):normal;unsigned now=now_ms();
   if(scene_pan_width_!=target.width){scene_panning_=false;scene_pan_width_=target.width;}
   if(focus&&!scene_panning_){scene_view_left_=normal;scene_view_top_=camera_y()-target.origin_y;scene_pan_time_=now;scene_panning_=true;}
   if(!scene_panning_)return;
   unsigned dt=std::min(100u,now-scene_pan_time_);scene_pan_time_=now;double delta=desired-scene_view_left_;double step=delta*(1-std::exp(-double(dt)/220.0));double limit=double(dt)*0.32;scene_view_left_+=std::clamp(step,-limit,limit);
-  int desired_top=vertical_focus?std::clamp((top+bottom-target.height)/2,0,std::max(0,int(scene_.map.height)*32-target.height)):camera_y()-target.origin_y;double dy=desired_top-scene_view_top_;scene_view_top_+=std::clamp(dy*(1-std::exp(-double(dt)/220.0)),-limit,limit);target.origin_y=camera_y()-int(std::lround(scene_view_top_));
+  int desired_top=vertical_focus?fit(camera_y()-target.origin_y,top,bottom,target.height,int(scene_.map.height)*32):camera_y()-target.origin_y;double dy=desired_top-scene_view_top_;scene_view_top_+=std::clamp(dy*(1-std::exp(-double(dt)/220.0)),-limit,limit);target.origin_y=camera_y()-int(std::lround(scene_view_top_));
   if(!focus&&std::abs(desired-scene_view_left_)<0.5&&std::abs(desired_top-scene_view_top_)<0.5){scene_panning_=false;scene_view_left_=desired;}
   target.origin_x=camera_x()-int(std::lround(scene_view_left_));
+ }
+ // Independent 640x480 story panels must not inherit the preceding world-camera origin.
+ void draw_story_panel(IndexedSurface&target,const std::vector<MenuDraw>&draws){
+  int ox=target.origin_x,oy=target.origin_y;bool clip=target.clip_core;
+  target.origin_x=(target.width-640)/2;target.origin_y=(target.height-480)/2;target.clip_core=false;target.border_rgb.clear();target.clear();
+  for(const auto&d:draws)target.blit(assets_.image(d.resource),d.x,d.y,d.color_key);
+  target.origin_x=ox;target.origin_y=oy;target.clip_core=clip;
  }
  const IndexedSurface& placement_sprite(const game::MapPlacement&m){return assets_.image(map_placement_asset(m.type));}
  void prepare_static_scene_objects(){fixed_scenery_.clear();if(scene_.stage==2)flying_scenery_.prepare(scene_.placements,assets_);for(auto&m:scene_.placements)if(m.type==0x74){auto&im=placement_sprite(m);fixed_scenery_.push_back({m.pixel_x(im.width),m.pixel_y(im.height),map_placement_asset(m.type)});}for(std::size_t i=0;i<scene_.placements.size();++i){auto&m=scene_.placements[i];if(m.type!=0x5f)continue;const auto&im=assets_.image("fire1.raw");fire_traps_.spawn(int(i),m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height));auto&e=fire_traps_.objects.back().e;e.at(0xc)=im.width;e.at(0x10)=im.height;spawned_[i]=true;}for(std::size_t i=0;i<scene_.placements.size();++i){auto&m=scene_.placements[i];if(!Level1SceneObjects::supports(m.type))continue;int w=32,h=32;const char*resource=m.type==0x57?"mole_m.app":m.type==0x7b?"gamecar.app":m.type==0x7c?"gamech_b.app":m.type==0x7d?"gamepuzl.app":m.type==0x7e?"gamecard.app":nullptr;if(resource){const auto&im=assets_.image(resource);w=im.width;h=im.height;}scene_objects_.spawn(m.type,m.pixel_x(w),m.pixel_y(h),int(i));spawned_[i]=true;}}
@@ -299,7 +333,7 @@ public:
    // The map placement is consumed once, including enemies that leave the screen.
    for(std::size_t i=0;i<scene_.placements.size();++i){const auto&m=scene_.placements[i];
     if(spawned_[i]||m.cell_x<(camera_x()-vx)/32||m.cell_x>=(camera_x()-vx+target.width)/32+1||m.cell_y<(camera_y()-vy)/32||m.cell_y>=(camera_y()-vy+target.height)/32+1)continue;
-    if(game::FlyingEnemyManager::supports(m.type)){if(m.cell_x<camera_x()/32||m.cell_x>=camera_x()/32+21)continue;const char*name=m.type==0x38?"shutbc.raw":m.type==0x39?"shutbe.raw":m.type==0x3c?"a.raw":m.type==0x3d?"b.raw":m.type==0x3e?"c.raw":m.type==0x3f?"d.raw":m.type==0x40?"e.raw":"shutba.raw";const auto&im=assets_.image(name);flying_enemies_.spawn(m.type,m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),int(i));spawned_[i]=true;}
+    if(game::FlyingEnemyManager::supports(m.type)){const char*name=m.type==0x38?"shutbc.raw":m.type==0x39?"shutbe.raw":m.type==0x3c?"a.raw":m.type==0x3d?"b.raw":m.type==0x3e?"c.raw":m.type==0x3f?"d.raw":m.type==0x40?"e.raw":"shutba.raw";const auto&im=assets_.image(name);flying_enemies_.spawn(m.type,m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),int(i));spawned_[i]=true;}
     else if(m.type==0x21){const auto&im=assets_.image("chh125bc.raw");flying_boss_=std::make_unique<FlyingBoss>(m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),int(i));spawned_[i]=true;globals_[0x461754]=1;}
    }
    flying_enemies_.tick(camera_x(),camera_y(),player,assets_,target);
@@ -326,16 +360,16 @@ public:
    draw_pickup_hud(assets_,player,target);companion_.tick(player,camera_x(),camera_y(),assets_,target,{});
    target.origin_x=ox;target.origin_y=oy;if(flying_.wants_menu)return_to_menu_=true;if(flying_.game_over){game_over_=true;game_over_started_=now_ms();if(play_music)play_music(14);}return;
   }
-  if(global_ending_||ending_credits_){++ticks_;CutsceneFrame f=global_ending_?global_ending_->update(now_ms(),input.read(0x46d4e8)!=0):ending_credits_->update(input.read(0x46d4e8)!=0);for(auto&d:f.draws)target.blit(assets_.image(d.resource),d.x,d.y,d.color_key);for(auto id:f.sounds)sound(id);if(f.cd_track&&play_music)play_music(f.cd_track);if(f.action==CutsceneFrame::credits){global_ending_.reset();ending_credits_=std::make_unique<EndingCredits>();}else if(f.action==CutsceneFrame::main_menu)return_to_menu_=true;return;}
-  if(booster_ending_){++ticks_;auto f=booster_ending_->update(now_ms(),input.read(0x46d4e8)!=0);for(auto&d:f.draws)target.blit(assets_.image(d.resource),d.x,d.y,d.color_key);for(auto id:f.sounds)sound(id);if(f.action==CutsceneFrame::resume_level){complete_=true;globals_[0x46142c]=3;globals_[0x461428]=4;player.at(0xbc)=player.at(0xb4)=0;}return;}
-  if(later_exit_){++ticks_;auto f=later_exit_->update(now_ms(),input.read(0x46d4e8)!=0);for(auto&d:f.draws)target.blit(assets_.image(d.resource),d.x,d.y,d.color_key);for(auto id:f.sounds)sound(id);
+  if(global_ending_||ending_credits_){++ticks_;CutsceneFrame f=global_ending_?global_ending_->update(now_ms(),input.read(0x46d4e8)!=0):ending_credits_->update(input.read(0x46d4e8)!=0);draw_story_panel(target,f.draws);for(auto id:f.sounds)sound(id);if(f.cd_track&&play_music)play_music(f.cd_track);if(f.action==CutsceneFrame::credits){global_ending_.reset();ending_credits_=std::make_unique<EndingCredits>();}else if(f.action==CutsceneFrame::main_menu)return_to_menu_=true;return;}
+  if(booster_ending_){++ticks_;auto f=booster_ending_->update(now_ms(),input.read(0x46d4e8)!=0);draw_story_panel(target,f.draws);for(auto id:f.sounds)sound(id);if(f.action==CutsceneFrame::resume_level){complete_=true;globals_[0x46142c]=3;globals_[0x461428]=4;player.at(0xbc)=player.at(0xb4)=0;}return;}
+  if(later_exit_){++ticks_;auto f=later_exit_->update(now_ms(),input.read(0x46d4e8)!=0);draw_story_panel(target,f.draws);for(auto id:f.sounds)sound(id);
    if(f.action==CutsceneFrame::resume_level){complete_=true;globals_[0x46142c]=globals_[0x461428];++globals_[0x461428];player.at(0xbc)=player.at(0xb4)=0;}return;}
 
   if(extra_game_.active()){++ticks_;MinigameCanvas canvas(assets_,target);auto f=extra_game_.tick(now_ms(),{bool(input.read(0x46d4b0)),bool(input.read(0x46d4b4)),bool(input.read(0x46d4b8)),bool(input.read(0x46d4bc)),bool(input.read(0x46d4e8)),bool(input.read(0x46d4dc))},assets_,target);if(f.palette&&change_palette)change_palette(f.palette);if(f.cd==0&&stop_music)stop_music();for(auto&file:f.sounds)if(play_sound_file)play_sound_file(file);if(f.finished){for(unsigned a:{0x471928u,0x471938u,0x47193cu,0x471940u})globals_[a]=1;if(play_music)play_music(unsigned(scene_.stage+4));}return;}
   if(mole_game_.active()){++ticks_;MinigameCanvas canvas(assets_,target);auto f=mole_game_.tick(now_ms(),{bool(input.read(0x46d4b0)),bool(input.read(0x46d4b4)),bool(input.read(0x46d4b8)),bool(input.read(0x46d4bc)),bool(input.read(0x46d4e8)),bool(input.read(0x46d4dc))},assets_,target);if(f.palette&&change_palette)change_palette(f.palette);if(f.cd==0&&stop_music)stop_music();else if(f.cd>0&&play_music)play_music(unsigned(f.cd));for(auto&file:f.sounds)if(play_sound_file)play_sound_file(file);if(f.finished){for(unsigned a:{0x471928u,0x471938u,0x47193cu,0x471940u})globals_[a]=1;if(play_music)play_music(unsigned(scene_.stage+4));}return;}
-  if(minigames_.active()){++ticks_;MinigameCanvas canvas(assets_,target);auto f=minigames_.tick(now_ms(),{input.read(0x46d4b0)!=0,input.read(0x46d4b4)!=0,input.read(0x46d4b8)!=0,input.read(0x46d4bc)!=0},assets_,target);
+  if(minigames_.active()){++ticks_;MinigameCanvas canvas(assets_,target);auto f=minigames_.tick(now_ms(),{input.read(0x46d4b0)!=0,input.read(0x46d4b4)!=0,input.read(0x46d4b8)!=0,input.read(0x46d4bc)!=0,input.read(0x46d4dc)!=0},assets_,target);
    if(f.loop_sound&&play_sound_loop)play_sound_loop(f.loop_sound);if(f.stop_sound&&stop_sound_file)stop_sound_file(f.stop_sound);
-   if(f.palette&&change_palette)change_palette(f.palette);if(f.cd==0){if(stop_music)stop_music();}else if(f.cd==0&&stop_music)stop_music();else if(f.cd>0&&play_music)play_music(unsigned(f.cd));for(auto&file:f.sounds)if(play_sound_file)play_sound_file(file);
+   if(f.palette&&change_palette)change_palette(f.palette);if(f.cd==0){if(stop_music)stop_music();}else if(f.cd>0&&play_music)play_music(unsigned(f.cd));for(auto&file:f.sounds)if(play_sound_file)play_sound_file(file);
    if(f.finished){for(unsigned a:{0x471928u,0x471938u,0x47193cu,0x471940u})globals_[a]=1;if(play_music)play_music(unsigned(scene_.stage+4));}return;
   }
   if(game_over_){++ticks_;target.blit(assets_.image("gmover.app"),0,0,false);bool space=input.read(0x46d4e8)!=0;if(space)game_over_space_=true;
@@ -348,10 +382,13 @@ public:
   ++ticks_;
   ensure_scene_callbacks();
   if(music_.update(now_ms())&&play_music)play_music(music_.track());
-  for(std::size_t i=0;i<scene_.placements.size();++i){auto&m=scene_.placements[i];if(spawned_[i]||m.cell_x<(camera_x()-target.origin_x)/32||m.cell_x>=(camera_x()-target.origin_x+target.width)/32+1||m.cell_y<(camera_y()-target.origin_y)/32||m.cell_y>=(camera_y()-target.origin_y+target.height)/32+1)continue;
-   // Visible scenery expands with the display; combat activation keeps the original 21x16 grid.
-   bool combat=m.type==0x79||(m.type>=0&&m.type<=2)||m.type==0x12||m.type==31||m.type==36||m.type==32||m.type==0x25||m.type==0x7a||game::Stage2ExtraEnemy::supports(m.type)||game::LaterAdditionalEnemies::supports(m.type)||game::LaterPatrolEnemy::supports(m.type)||game::LaterLargeGuard::supports(m.type)||game::LaterSpecialEnemies::supports(m.type);
-   if(combat&&(m.cell_x<camera_x()/32||m.cell_x>=camera_x()/32+21||m.cell_y<camera_y()/32||m.cell_y>=camera_y()/32+16))continue;
+  const int spawn_left=std::clamp(camera_x()-(target.width-640)/2,0,std::max(0,view_right_edge()-target.width));
+  const int spawn_top=std::clamp(camera_y()-(target.height-480)/2,0,std::max(0,int(scene_.map.height)*32-target.height));
+  for(std::size_t i=0;i<scene_.placements.size();++i){auto&m=scene_.placements[i];if(spawned_[i]||m.cell_x<(spawn_left-64)/32||m.cell_x>=(spawn_left+target.width+64)/32+1||m.cell_y<(spawn_top-64)/32||m.cell_y>=(spawn_top+target.height+64)/32+1)continue;
+   // Ordinary enemies activate across the complete visible world rectangle on every stage.
+   // Keep Boss activation in its original corridor to preserve introductory sequences.
+   bool boss_placement=m.type==0x12||m.type==32||m.type==0x25;
+   if(boss_placement&&(m.cell_x<camera_x()/32||m.cell_x>=camera_x()/32+21||m.cell_y<camera_y()/32||m.cell_y>=camera_y()/32+16))continue;
    if(m.type>=0&&m.type<=2){const char* names[]={"c1_f.app","c2_f.app","c3_f.app"};auto&im=assets_.image(names[m.type]);enemies_->spawn(m.type,m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),short(i));spawned_[i]=true;}
    else if(m.type==0x12){auto&im=assets_.image("ryoko_a2.app");boss_=std::make_unique<game::FirstBoss>(m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),im.width,im.height);spawned_[i]=true;}
    else if(m.type==31||m.type==36||m.type==32||game::Stage2ExtraEnemy::supports(m.type)||m.type==0x25){ensure_later_actors();const char*name=m.type==31?"cht11cd.app":m.type==36?"cht122dd.app":m.type==0x25?"cht121bd.app":m.type==0x1d?"chch1bd.app":m.type==0x1e?"chch2cc.app":"cht144ac.app";auto&im=assets_.image(name);later_actors_->spawn(m.type,m.pixel_x(placement_sprite(m).width),m.pixel_y(placement_sprite(m).height),i);spawned_[i]=true;}
@@ -393,7 +430,7 @@ public:
   if(final_encounter_.active()){game::CollisionWorld world(scene_.map,scene_.collision_blocks);final_encounter_.tick(now_ms(),player,camera_x(),camera_y(),assets_,target,world,[&](unsigned id){sound(id);},play_music);draw_pickup_hud(assets_,player,target);companion_.tick(player,camera_x(),camera_y(),assets_,target,{});return;}
   if(jungle_intro_.active()){game::CollisionWorld world(scene_.map,scene_.collision_blocks);jungle_intro_.tick(now_ms(),player,*jungle_bosses_[0],*jungle_bosses_[1],camera_x(),camera_y(),assets_,target,world,[&](unsigned id){sound(id);});draw_pickup_hud(assets_,player,target);companion_.tick(player,camera_x(),camera_y(),assets_,target,{});return;}
   enemies_->tick(camera_x(),camera_y(),target);
-  if(later_actors_){later_actors_->tick(camera_x(),camera_y(),target);for(auto&r:later_actors_->respawn_records)relocate_enemy(r.placement,r.x,r.y);later_actors_->respawn_records.clear();later_actors_->respawn_indices.clear();for(auto&file:later_actors_->sounds)if(play_sound_file)play_sound_file(file);later_actors_->sounds.clear();}
+  if(later_actors_){later_actors_->tick(camera_x(),camera_y(),target,now_ms());for(auto&r:later_actors_->respawn_records)relocate_enemy(r.placement,r.x,r.y);later_actors_->respawn_records.clear();later_actors_->respawn_indices.clear();for(auto&file:later_actors_->sounds)if(play_sound_file)play_sound_file(file);later_actors_->sounds.clear();}
   update_later_sequence(input.read(0x46d4ec)!=0,false);if(later_exit_)return;
   if(!enemy_missiles_)enemy_missiles_=std::make_unique<EnemyMissiles>(assets_,scene_.map,scene_.collision_blocks);
   enemy_missiles_->tick(camera_x(),camera_y(),target);if(later_projectiles_)later_projectiles_->tick(camera_x(),camera_y(),target);if(flame_projectiles_)flame_projectiles_->tick(camera_x(),camera_y(),target);
@@ -507,6 +544,10 @@ public:
   });
   companion_.tick(player,camera_x(),camera_y(),assets_,target,companion_targets);
   if(abilities_){abilities_->tick(camera_x(),camera_y(),target);for(auto&file:abilities_->sounds)if(play_sound_file)play_sound_file(file);abilities_->sounds.clear();}
+  // Weapon collisions happen after the normal actor sound drain. Submit these
+  // hit sounds now, before a scene/ending transition can skip the next update.
+  for(const auto&file:enemies_->sound_requests)if(play_sound_file)play_sound_file(file);enemies_->sound_requests.clear();
+  if(later_actors_){for(const auto&file:later_actors_->sounds)if(play_sound_file)play_sound_file(file);later_actors_->sounds.clear();}
   globals_[0x46cda8]=(companion_.active()||(abilities_&&abilities_->active()))?1:0;
   draw_pickup_hud(assets_,player,target);
   for(auto it=shots_.begin();it!=shots_.end();){if((*it)->owner_state==2){destroy_projectile(**it,0,*this);it=shots_.erase(it);}else ++it;}

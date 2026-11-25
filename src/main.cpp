@@ -6,6 +6,7 @@
 #include "game/menu.hpp"
 #include "game/menu_audio.hpp"
 #include "game/startup_sequence.hpp"
+#include "game/dedication_splash.hpp"
 #include "game/bootstrap_preload.hpp"
 #include "game/stage_select.hpp"
 #include "game/progress_save.hpp"
@@ -34,23 +35,24 @@ void save_frame(const std::string& path,const shin::IndexedSurface& frame,const 
 int main(int argc,char** argv){
  bool headless_requested=false;for(int i=1;i<argc;++i)if(std::string(argv[i])=="--headless"||std::string(argv[i])=="--timed-headless")headless_requested=true;
  try {
-  bool headless=false,timed_headless=false,skip_intro=false,fresh_start=false;int frames=0,window_width=1280,window_height=720,speed_override=-1,boss_stage=-1;std::string archive="D:\\ws_vs\\lbxx\\lbxx_asset\\RESOURCE.RES",output,initial="splash",script_path,trace_path,settings_override;
+  bool headless=false,timed_headless=false,skip_intro=false,fresh_start=false,windowed=false;int frames=0,window_width=1280,window_height=720,speed_override=-1,boss_stage=-1;std::string archive="D:\\ws_vs\\lbxx\\lbxx_asset\\RESOURCE.RES",output,initial="splash",script_path,trace_path,settings_override;
   const auto application_dir=std::filesystem::absolute(argv[0]).parent_path();
   if(std::filesystem::is_regular_file(application_dir/"assets"/"RESOURCE.RES"))archive=(application_dir/"assets"/"RESOURCE.RES").string();
-  for(int i=1;i<argc;++i){std::string a=argv[i];if(a=="--fresh-start")fresh_start=true;else if(a=="--headless")headless=true;else if(a=="--timed-headless"){headless=true;timed_headless=true;}else if(a=="--speed-ms"&&i+1<argc)speed_override=std::stoi(argv[++i]);
+  for(int i=1;i<argc;++i){std::string a=argv[i];if(a=="--windowed")windowed=true;else if(a=="--fresh-start")fresh_start=true;else if(a=="--headless")headless=true;else if(a=="--timed-headless"){headless=true;timed_headless=true;}else if(a=="--speed-ms"&&i+1<argc)speed_override=std::stoi(argv[++i]);
    else if(a=="--frames"&&i+1<argc)frames=std::stoi(argv[++i]);else if(a=="--assets"&&i+1<argc)archive=argv[++i];
    else if(a=="--boss-stage"&&i+1<argc){boss_stage=std::stoi(argv[++i])-1;if(boss_stage<0||boss_stage>=7)throw std::runtime_error("boss-stage must be 1..7");}else if(a=="--skip-intro")skip_intro=true;else if(a=="--settings-file"&&i+1<argc)settings_override=argv[++i];else if(a=="--output"&&i+1<argc)output=argv[++i];else if(a=="--scene"&&i+1<argc)initial=argv[++i];else if(a=="--script"&&i+1<argc)script_path=argv[++i];else if(a=="--trace"&&i+1<argc)trace_path=argv[++i];else if(a=="--width"&&i+1<argc)window_width=std::stoi(argv[++i]);else if(a=="--height"&&i+1<argc)window_height=std::stoi(argv[++i]);else throw std::runtime_error("unknown argument: "+a);}
   if(headless&&frames<=0)throw std::runtime_error("headless mode requires --frames > 0");
   shin::load_game_rules(application_dir/"gameplay.ini");
   auto viewport=shin::ViewportLayout::for_client(window_width,window_height);
   shin::AssetStore assets(archive);shin::IndexedSurface frame(viewport.logical_width,viewport.logical_height);frame.origin_x=viewport.origin_x;frame.origin_y=viewport.origin_y;auto palette=assets.palette("ss.pal");
+  std::unique_ptr<shin::DedicationSplash> dedication;shin::IndexedSurface dedication_frame;bool dedication_active=false;
   shin::Scheduler scheduler;shin::SplashSequence splash;std::unique_ptr<shin::MainMenu> menu;
   shin::InputState silent_input;std::unique_ptr<shin::platform::NativeWindow> window;
-  if(!headless)window=std::make_unique<shin::platform::NativeWindow>(L"蜡笔小新1-重构版",window_width,window_height);
+  if(!headless)window=std::make_unique<shin::platform::NativeWindow>(L"蜡笔小新1-重构版",window_width,window_height,!windowed);
   shin::platform::GameAudio audio(std::filesystem::path(archive).parent_path(),headless);
   if(!audio.load_inmm_playlist())throw std::runtime_error("missing _inmm.ini music playlist");
   auto loading_pump=[&]{if(window)window->pump();};
-  shin::loading_task([&]{if(!audio.prepare_track(2))throw std::runtime_error("startup music buffering failed");assets.preload_all_images();},loading_pump);
+  shin::loading_task([&]{if(!audio.prepare_interface_music())throw std::runtime_error("startup music buffering failed");assets.preload_all_images();},loading_pump);
   std::unique_ptr<shin::LevelRuntime> level;
   std::unique_ptr<shin::StageIntro> level_intro;
   int ticks=0;const auto host_started=std::chrono::steady_clock::now();
@@ -146,11 +148,19 @@ int main(int argc,char** argv){
     else if(f.action!=shin::OptionAction::none){self.state=2;show_settings(f.action==shin::OptionAction::choice_zero_callback_42f9a0?shin::SettingsMenu::speed_mode:shin::SettingsMenu::scroll_mode);}
    });
   };
+  bool menu_escape_held=false;
   show_menu=[&]{
    audio.play_track(2);
    scene="main_menu";menu=std::make_unique<shin::MainMenu>(now_ms());palette=assets.palette(shin::MainMenu::palette());
    scheduler.create(5,[&](shin::Scheduler::Node& self){
     auto& keys=input();
+    const bool escape_now=bool(keys.read(0x46d4f0));
+    if(escape_now&&!menu_escape_held){
+     menu_escape_held=true;
+     for(const auto*file:{"resource/_1.wav","resource/_2.wav","resource/_3.wav"})audio.stop(file);
+     self.state=2;show_menu();render(menu->update(now_ms(),{}).draws);return;
+    }
+    menu_escape_held=escape_now;
     auto draw=menu->update(now_ms(),{bool(keys.read(0x46d4b0)),bool(keys.read(0x46d4b4)),bool(keys.read(0x46d4ec))});
     render(draw.draws);
     shin::dispatch_menu_audio(draw,[&](unsigned t,bool restart){audio.play_track(t,restart);},[&]{audio.stop_music();},[&](const std::string&file){audio.play_wav(file);});
@@ -163,9 +173,14 @@ int main(int argc,char** argv){
   if(boss_stage>=0){show_level(boss_stage);level_intro.reset();scene="stage_"+std::to_string(boss_stage);level->debug_boss_entry(10);}else if(initial=="stage7_boss"||initial=="stage7_boss_weapons"){show_level(6);level_intro.reset();scene="stage_6";level->debug_final_boss_entry(initial=="stage7_boss_weapons");}else if(initial=="bonus_card")show_bonus(1);else if(initial=="bonus_puzzle")show_bonus(4);else if(initial=="shoot")show_level(2);else if(initial=="bonus_mole")show_bonus(3);else if(initial=="bonus_car")show_bonus(0);else if(initial=="bonus_flag")show_bonus(2);else if(initial=="stage2_mole"){show_level(1);level_intro.reset();scene="stage_1";shin::game::EntityPayload entry;level->call(0x43d120,level->player,entry,{});}else if(initial=="gameover"){show_level(0);level_intro.reset();scene="game_over";level->call(0x44d790,level->player,{});}else if(initial=="level1")show_level(0);else if(initial=="stage2")show_level(1);else if(initial=="stage3")show_level(3);else if(initial=="stage4")show_level(4);else if(initial=="stage5")show_level(5);else if(initial=="stage6")show_level(6);else if(initial=="menu")show_menu();else if(initial=="select")show_select();else if(initial=="options"){palette=assets.palette(shin::MainMenu::palette());show_options();}
   else if(initial=="speed"||initial=="scroll"||initial=="slider"){palette=assets.palette(shin::MainMenu::palette());show_settings(initial=="speed"?shin::SettingsMenu::speed_mode:initial=="scroll"?shin::SettingsMenu::scroll_mode:shin::SettingsMenu::speed_slider);}
   else if(initial=="splash")scheduler.create(5,[&](shin::Scheduler::Node& self){
-   static unsigned warmup=0;shin::preload_bootstrap(assets,warmup++);auto step=splash.update();if(step.palette_phase>=0)palette=assets.palette(step.palette_phase?"rw.pal":"ss.pal");
+   if(!dedication)dedication=std::make_unique<shin::DedicationSplash>(std::filesystem::path(archive).parent_path()/"overrides"/"dedication.rgba");
+   static unsigned warmup=0;shin::preload_bootstrap(assets,warmup++);
+   auto size=window?window->client_size():std::array<int,2>{frame.width,frame.height};
+   if(size[0]>0&&size[1]>0&&(dedication_frame.width!=size[0]||dedication_frame.height!=size[1]))dedication_frame=shin::IndexedSurface(size[0],size[1]);
+   dedication_active=dedication->render(now_ms(),dedication_frame);
+   if(dedication_active){if(!window)frame=dedication_frame;return;}auto step=splash.update();if(step.palette_phase>=0)palette=assets.palette(step.palette_phase?"rw.pal":"ss.pal");
    if(!step.transition){frame.blit(assets.image(step.image_phase?"rw.app":"ss.app"),0,0,false);return;}
-   self.state=2;show_menu();
+   self.state=2;show_menu();render(menu->update(now_ms(),{}).draws);
   });else throw std::runtime_error("invalid scene");
   std::ofstream trace;if(!trace_path.empty()){trace.open(trace_path);if(!trace)throw std::runtime_error("cannot open trace output");trace<<"tick,scene,x,y,state,lives,score,camera_x,camera_y,completed,up,down,left,right,space,enter,escape\n";}
   shin::platform::FramePacer pacer;shin::UpdateClock update_clock;
@@ -179,18 +194,18 @@ int main(int argc,char** argv){
    unsigned updates=1;
    const bool gameplay=level&&!level_intro&&!level->paused()&&!level->game_over()&&(scene=="level1"||scene.rfind("stage_",0)==0);
    if(window){auto elapsed=std::chrono::duration_cast<std::chrono::nanoseconds>(frame_started-measured_start).count();updates=update_clock.due(elapsed,gameplay&&speed.speed_value!=16?std::int64_t(std::clamp(speed.speed_value,1,209))*1000000:shin::UpdateClock::display_ns);}
-   if(window&&!window->input().active){updates=0;update_clock.reset();}
+   if(window&&!window->input().active&&!std::getenv("SHIN_GPU_BENCHMARK")){updates=0;update_clock.reset();}
    for(unsigned i=0;i<updates;++i){scheduler.tick();++simulation_updates;if(quit)break;}
    if(trace&&level)trace<<ticks<<","<<scene<<","<<level->player.at(8)<<","<<level->player.at(12)<<","<<level->player.at(0x5c)<<","<<level->player.at(0x8c)<<","<<level->player.at(0x70)<<","<<level->camera_x()<<","<<level->camera_y()<<","<<level->completed()<<","<<pressed(0x46d4b0)<<","<<pressed(0x46d4b4)<<","<<pressed(0x46d4b8)<<","<<pressed(0x46d4bc)<<","<<pressed(0x46d4e8)<<","<<pressed(0x46d4ec)<<","<<pressed(0x46d4f0)<<"\n";
    audio.set_music_volume(level&&(level_intro||level->cinematic_active())&&(scene=="level1"||scene=="level1_intro"||scene=="stage2_intro"||scene=="flying_intro"||scene.rfind("stage_",0)==0)?0.50f:0.75f);
-   if(window){window->present(frame.pixels.data(),palette,frame.width,frame.height,frame.border_rgb.empty()?nullptr:frame.border_rgb.data());++presentations;}++ticks;
+   if(window){auto&display=dedication_active?dedication_frame:frame;window->present(display.pixels.data(),palette,display.width,display.height,display.border_rgb.empty()?nullptr:display.border_rgb.data());++presentations;}++ticks;
    if(!headless||timed_headless){
     auto interval=window?std::chrono::nanoseconds(shin::UpdateClock::display_ns):std::chrono::nanoseconds(std::int64_t(std::clamp(speed.speed_value,1,209))*1000000);
     display_deadline+=interval;
     // Keep fractional deadlines, but discard a long stall rather than burning
     // seconds replaying old frames after a window drag or breakpoint.
     auto now=std::chrono::steady_clock::now();if(now>display_deadline+interval*4)display_deadline=now;
-    pacer.wait_until(display_deadline);
+    if(!window||!window->vsync_enabled()||!window->input().active)pacer.wait_until(display_deadline);
     if(frame_times.size()>=4096)frame_times.erase(frame_times.begin(),frame_times.begin()+2048);
     frame_times.push_back(std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-frame_started).count());
    }

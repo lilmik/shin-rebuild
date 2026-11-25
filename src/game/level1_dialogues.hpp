@@ -93,7 +93,7 @@ public:
  // Host may keep invoking this after completion for the three retained background actors.
  void tick_actors(int cx,int cy,AssetStore&assets,IndexedSurface&frame,const ActorCollision&collision){
   for(auto&a:actors){
-   if(a.removed)continue;if(std::abs(a.x-cx-320)>960){a.removed=true;continue;}
+   if(a.removed)continue; // Retain participants when the wide view pans away.
    const char*const*names=a.identity==0?dialogue_data::n0:a.identity==1?dialogue_data::n1:a.identity==2?dialogue_data::n2:dialogue_data::n3;
    int offset=a.identity==2?(a.speaking?1:0):a.identity==3?(a.speaking?1:0):(a.speaking?2:0);
    int count=a.identity==2&&!a.speaking?1:a.identity==3?1:2;

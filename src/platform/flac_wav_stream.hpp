@@ -9,10 +9,10 @@
 namespace shin {
 // Expose decoded FLAC as a seekable PCM WAV without decoding entire BGM into RAM.
 inline SDL_RWops* flac_wav_stream(const char*path){
- struct Stream{drflac*d;std::array<Uint8,44>header{};Sint64 pos=0,total=0;drflac_uint64 cursor=0;~Stream(){drflac_close(d);}};
+ struct Stream{drflac*d;std::vector<drflac_int16>scratch;std::array<Uint8,44>header{};Sint64 pos=0,total=0;drflac_uint64 cursor=0;~Stream(){drflac_close(d);}};
  auto*d=drflac_open_file(path,nullptr);if(!d)return nullptr;
  if(d->bitsPerSample>16||d->channels>8||d->totalPCMFrameCount==0){drflac_close(d);return nullptr;}
- auto*s=new Stream{d};Uint32 bytes=Uint32(d->totalPCMFrameCount*d->channels*2);s->total=44+Sint64(bytes);
+ auto*s=new Stream{d};s->scratch.resize(8192*d->channels);Uint32 bytes=Uint32(d->totalPCMFrameCount*d->channels*2);s->total=44+Sint64(bytes);
  auto put16=[&](int o,Uint16 v){s->header[o]=v;s->header[o+1]=v>>8;};auto put32=[&](int o,Uint32 v){for(int j=0;j<4;++j)s->header[o+j]=v>>(j*8);};
  memcpy(s->header.data(),"RIFF",4);put32(4,36+bytes);memcpy(s->header.data()+8,"WAVEfmt ",8);put32(16,16);put16(20,1);put16(22,d->channels);put32(24,d->sampleRate);put32(28,d->sampleRate*d->channels*2);put16(32,d->channels*2);put16(34,16);memcpy(s->header.data()+36,"data",4);put32(40,bytes);
  auto*rw=SDL_AllocRW();if(!rw){delete s;return nullptr;}rw->hidden.unknown.data1=s;rw->type=SDL_RWOPS_UNKNOWN;
@@ -22,7 +22,7 @@ inline SDL_RWops* flac_wav_stream(const char*path){
  if(s->pos<44){size_t n=std::min<size_t>(want,44-s->pos);memcpy(out,s->header.data()+s->pos,n);s->pos+=n;done+=n;}
  if(done<want){auto align=s->d->channels*2;auto start=drflac_uint64(s->pos-44)/align;size_t skip=size_t(s->pos-44)%align,frames=(want-done+skip+align-1)/align;
  if(s->cursor!=start&&!drflac_seek_to_pcm_frame(s->d,start))return done/size;
- std::vector<drflac_int16>pcm(frames*s->d->channels);auto got=drflac_read_pcm_frames_s16(s->d,frames,pcm.data());s->cursor=start+got;size_t available=size_t(got)*align;size_t n=available>skip?std::min(want-done,available-skip):0;memcpy(out+done,reinterpret_cast<Uint8*>(pcm.data())+skip,n);s->pos+=n;done+=n;}
+ if(s->scratch.size()<frames*s->d->channels)s->scratch.resize(frames*s->d->channels);auto got=drflac_read_pcm_frames_s16(s->d,frames,s->scratch.data());s->cursor=start+got;size_t available=size_t(got)*align;size_t n=available>skip?std::min(want-done,available-skip):0;memcpy(out+done,reinterpret_cast<Uint8*>(s->scratch.data())+skip,n);s->pos+=n;done+=n;}
  return done/size;};
  rw->write=[](SDL_RWops*,const void*,size_t,size_t)->size_t{return 0;};rw->close=[](SDL_RWops*r)->int{delete static_cast<Stream*>(r->hidden.unknown.data1);SDL_FreeRW(r);return 0;};return rw;
 }

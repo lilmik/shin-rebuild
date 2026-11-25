@@ -20,12 +20,11 @@ public:
  void tick(PlayerPayload&p,int cx,int cy,AssetStore&assets,IndexedSurface&surface,const std::vector<Target>&targets){
   if(state_==1&&tick_==49)pose(2);
   else if(state_==2&&tick_==49)pose(3);
-  else if(state_==3){if(tick_==49)pose(4);const Target*nearest=nullptr;long long best=0;
+  else if(state_==3){if(tick_==49)pose(4);const Target*nearest=nullptr;
    for(const auto&t:targets){
-    // Prefer reachable, visible enemies rather than an old offscreen entry.
+    // Preserve registry order as in 43a3f0; retain widescreen visibility filtering.
     if(!game::intersects(t.rect,t.x-cx,t.y-cy,{-surface.origin_x,-surface.origin_y,surface.width-surface.origin_x,surface.height-surface.origin_y},0,0))continue;
-    long long dx=static_cast<long long>(t.x)-x_,dy=static_cast<long long>(t.y)-y_,distance=dx*dx+dy*dy;
-    if(!nearest||distance<best){nearest=&t;best=distance;}
+    nearest=&t;break;
    }
    if(nearest){x_+=(nearest->x-x_)/2;y_+=(nearest->y-y_)/2;}}
   else if(state_==4){if(tick_==49)pose(0);x_=10;y_=400;}

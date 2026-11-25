@@ -9,5 +9,9 @@ int main(int argc,char**argv){if(argc!=2)return 1;shin::AssetStore a(argv[1]);sh
  std::vector<shin::CompanionHud::Target> choices={{-5000,0,{0,0,74,71},[&]{++offscreen_hits;}},{100,100,{0,0,74,71},[&]{++visible_hits;}}};
  attack.activate();for(int i=0;i<210;++i)attack.tick(p,0,0,a,f,choices);
  if(attack.active()||visible_hits==0||offscreen_hits!=0)return 5;
+ int first_hits=0,near_hits=0;shin::CompanionHud ordered;
+ std::vector<shin::CompanionHud::Target> ordered_targets={{350,100,{0,0,74,71},[&]{++first_hits;}},{100,100,{0,0,74,71},[&]{++near_hits;}}};
+ ordered.activate();for(int i=0;i<210;++i)ordered.tick(p,0,0,a,f,ordered_targets);
+ if(!first_hits||near_hits)return 6;
  std::cout<<"Shiro activation, target contact, return to HUD, life assets verified\n";
 }

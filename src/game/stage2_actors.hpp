@@ -39,10 +39,11 @@ public:
  bool hurt(EntityPayload&e){for(auto&n:actors_){bool found=false;std::visit([&](auto&a){if(&a.payload==&e&&e.state==0&&!dying(e)){a.hurt();collect(a);found=true;}},n->actor);if(found)return true;}return false;}
  bool hit(const CollisionRect&r,int x,int y){bool result=false;for(auto*e:targets())if(!dying(*e)&&intersects(r,x,y,rectangle(*e),e->at(4),e->at(8)))result=hurt(*e)||result;return result;}
  void platform(EntityPayload&e,int direction){for(auto&n:actors_)std::visit([&](auto&a){if(&a.payload==&e)a.platform(direction);},n->actor);}
- void tick(int cx,int cy,IndexedSurface&frame){
+ void tick(int cx,int cy,IndexedSurface&frame,unsigned now=0xffffffffu){
   for(auto&n:actors_)std::visit([&](auto&a){using T=std::decay_t<decltype(a)>;
+   if constexpr(std::is_same_v<T,Stage2Boss>)if(now!=0xffffffffu&&!a.update_due(now)){a.draw(cx,cy,assets_,frame);return;}
    if constexpr(std::is_same_v<T,Stage2Mouse>||std::is_same_v<T,Stage2ExtraEnemy>||std::is_same_v<T,Stage2RemainingEnemy>)a.tick(cx,cy,assets_,frame);else a.tick(cx,cy,player_.at(8),player_.at(0x10),assets_,frame);
-   if(a.payload.state==0){auto&e=a.payload;int material=world_.body(rectangle(e),e.at(4),e.at(8));if(material)a.terrain(world_,material);}
+   if(a.payload.state==0){auto&e=a.payload;int material=world_.body(rectangle(e),e.at(4),e.at(8));if(material)a.terrain(world_,material);if constexpr(std::is_same_v<T,Stage2Boss>)a.after_terrain();}
    if constexpr(std::is_same_v<T,Stage2Mouse>)collect(a);else collect_events(a);
    if(dying(a.payload)||a.defeated)dead_placements.insert(n->placement);
    if(a.respawn_requested&&!dead_placements.count(n->placement)){respawn_indices.push_back(n->placement);respawn_records.push_back({n->placement,a.payload.at(4),a.payload.at(8)});}

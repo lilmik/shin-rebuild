@@ -11,7 +11,5 @@ int main(int argc,char**argv){assert(argc==2);shin::AssetStore a(argv[1]);shin::
  assert(end>=0);std::vector<int> path;while(nodes[end].parent>=0){path.push_back(nodes[end].dir);end=nodes[end].parent;}std::reverse(path.begin(),path.end());for(int d:path){tick({d==2,d==0,d==1,d==3});tick({});}now+=2501;assert(g.tick(now,{},a,f).finished);
  for(int typ:{1,4}){assert(g.start(typ));assert(tick({false,false,false,false,false,true}).finished);}
  {shin::MinigameCanvas canvas(a,f);assert(f.clip_core&&!f.border_rgb.empty());auto original=f.border_rgb;shin::IndexedSurface hammer(200,200,5);f.blit(hammer,-200,-200);assert(original==f.border_rgb);}assert(!f.clip_core);
- auto raw=shin::decode_app(a.bytes("savebg.app"));auto&selection=a.image("savebg.app");auto pal=a.palette("shin.pal");for(int yy=257;yy<=422;++yy)for(int xx=40;xx<=171;++xx){auto c=pal[raw.indices[yy*640+xx]];int r=(c>>16)&255,g=(c>>8)&255,b=c&255;if(std::min({r,g,b})<144||std::max({r,g,b})-std::min({r,g,b})>80)assert(selection.pixels[yy*640+xx]==raw.indices[yy*640+xx]);}
- for(auto point:{std::pair<int,int>{200,80},{180,430},{400,400}}){auto i=point.second*640+point.first;assert(selection.pixels[i]==selection.wallpaper[i]);}
  shin::ResourceArchive x(argv[1]),y(argv[1]);assert(x.storage_identity()==y.storage_identity());
 }

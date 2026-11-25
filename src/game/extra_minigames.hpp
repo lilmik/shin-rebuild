@@ -9,7 +9,7 @@ class ExtraMinigames {
 public:
  using Input=Stage2Minigame::Input;using Output=Stage2Minigame::Output;
 private:
- int type_=0,selected_=0,first_card_=-1,second_card_=-1,lives_=4,empty_=8;bool active_=false,first_=true,feedback_=false,solved_=false;unsigned started_=0,reveal_=0,finished_at_=0,random_=1;Input previous_{};
+ int type_=0,selected_=0,first_card_=-1,second_card_=-1,lives_=4,empty_=8;bool active_=false,first_=true,feedback_=false,solved_=false;unsigned started_=0,reveal_=0,finished_at_=0,random_=1;Input previous_{};bool action_ready_=false;
  std::array<int,18> cards_{};std::array<bool,18> present_{};std::array<int,9> board_{};
  unsigned next_random(){random_=random_*214013u+2531011u;return (random_>>16)&32767;}
  void move(int d){int n=empty_;if(d==0&&empty_>=3)n-=3;if(d==1&&empty_%3<2)++n;if(d==2&&empty_<6)n+=3;if(d==3&&empty_%3>0)--n;std::swap(board_[empty_],board_[n]);empty_=n;}
@@ -17,7 +17,7 @@ private:
 public:
  bool active()const{return active_;}int selected()const{return selected_;}int lives()const{return lives_;}int face(int n)const{return cards_.at(n);}bool present(int n)const{return present_.at(n);}const auto&board()const{return board_;}
  bool start(int type){if(active_||(type!=1&&type!=4))return false;*this=ExtraMinigames{};type_=type;active_=true;present_.fill(true);for(int i=0;i<18;++i)cards_[i]=i/2;for(int i=0;i<18;++i)std::swap(cards_[i],cards_[next_random()%18]);for(int i=0;i<9;++i)board_[i]=extra_minigame_data::puzzle_goal[i];return true;}
- Output tick(unsigned now,Input in,AssetStore&a,IndexedSurface&f){Output o;if(!active_)return o;if(first_){first_=false;started_=now;o.palette="shin.pal";o.cd=0;}if(in.exit)return finish(o);
+ Output tick(unsigned now,Input in,AssetStore&a,IndexedSurface&f){Output o;if(!active_)return o;if(first_){first_=false;started_=now;o.palette="shin.pal";o.cd=0;}if(in.exit)return finish(o);if(!in.space)action_ready_=true;if(!action_ready_)in.space=false;
  auto draw=[&](const std::string&n,int x,int y,bool key=true){f.blit(a.image(n),x,y,key);};
  if(type_==1){
   if(feedback_&&now-reveal_>800){if(cards_[first_card_]==cards_[second_card_])present_[first_card_]=present_[second_card_]=false;else --lives_;first_card_=second_card_=-1;feedback_=false;}

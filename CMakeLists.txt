@@ -12,7 +12,7 @@ if(WIN32)
  enable_language(RC)
  add_library(shin_native STATIC src/platform/native_backend.cpp src/platform/game_audio.cpp)
  target_include_directories(shin_native PUBLIC src)
- target_link_libraries(shin_native PUBLIC user32 gdi32 winmm mfplay ole32)
+ target_link_libraries(shin_native PUBLIC user32 gdi32 opengl32 winmm mfplay ole32)
  add_executable(shin_progress src/main.cpp resources/windows/shinchan.rc)
  target_include_directories(shin_progress PRIVATE resources/windows)
  set_target_properties(shin_progress PROPERTIES OUTPUT_NAME SHIN_Level1)
@@ -139,3 +139,19 @@ endif()
 
 add_executable(menu_idle_timing_test tests/menu_idle_timing_test.cpp)
 target_link_libraries(menu_idle_timing_test PRIVATE shin_game)
+
+add_executable(truecolor_surface_test tests/truecolor_surface_test.cpp)
+target_compile_features(truecolor_surface_test PRIVATE cxx_std_17)
+
+add_executable(interface_music_cache_test tests/interface_music_cache_test.cpp)
+target_compile_features(interface_music_cache_test PRIVATE cxx_std_17)
+
+add_executable(cinematic_framing_test tests/cinematic_framing_test.cpp)
+target_link_libraries(cinematic_framing_test PRIVATE shin_game)
+
+if(UNIX)
+ option(SHIN_BUILD_PORTABLE "Build SDL desktop application" ON)
+ if(SHIN_BUILD_PORTABLE)
+  add_subdirectory(platforms/desktop)
+ endif()
+endif()

@@ -10,7 +10,7 @@ namespace minigame_data {
 // switches requested palette/CD, then resumes on returned finished flag.
 class Level1Minigames {
 public:
- struct Input {bool up=false,down=false,left=false,right=false;};
+ struct Input {bool up=false,down=false,left=false,right=false,exit=false;};
  struct Output {bool finished=false;const char*palette=nullptr;int cd=-1;const char*loop_sound=nullptr;const char*stop_sound=nullptr;std::vector<std::string> sounds;};
 private:
  int type_=0;bool active_=false,first_=true;unsigned music_=0;
@@ -25,6 +25,7 @@ public:
  Output tick(unsigned now,const Input&input,AssetStore&assets,IndexedSurface&frame){
   Output out;if(!active_)return out;
   if(first_){first_=false;out.palette=type_==0x7b?"shin.pal":"flag.pal";out.cd=type_==0x7b?13:0;music_=now;}
+  if(input.exit)return finish(out);
   if(type_==0x7b){
    if(now-music_>46000){out.cd=13;music_=now;}
    if(row_>192)return finish(out);

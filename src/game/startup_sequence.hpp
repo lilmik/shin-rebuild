@@ -8,7 +8,9 @@ struct SplashSequence {
  Step update(){
   if(finished)return {-1,-1,false};
   int palette=ticks==0?phase:-1;
-  if(++ticks==100){ticks=0;if(++phase==2){finished=true;return {palette,-1,true};}}
+  // Publish a new image and its palette together. The original one-tick
+  // palette lag displayed the black logo with the preceding white-logo colors.
+  if(++ticks==100){ticks=0;if(++phase==2){finished=true;return {-1,-1,true};}palette=phase;}
   return {palette,phase,false};
  }
 };

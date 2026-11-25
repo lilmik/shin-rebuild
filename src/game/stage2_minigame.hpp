@@ -10,12 +10,12 @@ public:
  struct Output{bool finished=false;const char*palette=nullptr;int cd=-1;std::vector<std::string>sounds;};
 private:
  struct Mole{int x,y,tx,ty,remaining=0,hit=0,hit_tick=0;};
- std::array<Mole,9> moles_{};bool active_=false,first_=true;Input previous_{};
- int column_=1,row_=1,hx_=240,hy_=70,hammer_=0,latch_=0,score_=0,seconds_=60,spawn_ticks_=0,interval_=15;unsigned music_=0,random_=1,step_clock_=0,game_start_=0;bool step_started_=false;
+ std::array<Mole,9> moles_{};bool active_=false,first_=true;Input previous_{},pending_{};
+ int column_=1,row_=1,hx_=240,hy_=70,hammer_=0,latch_=0,score_=0,seconds_=60,spawn_ticks_=0,interval_=15;unsigned music_=0,random_=1,step_clock_=0,game_start_=0;bool step_started_=false,strike_pending_=false,space_down_=false,action_ready_=false;
  static void draw(AssetStore&a,IndexedSurface&f,const std::string&n,int x,int y,bool key=true){f.blit(a.image(n),x,y,key);}
  Output finish(Output o){active_=false;o.finished=true;o.palette="shin.pal";return o;}
 public:
- bool active()const{return active_;}int score()const{return score_;}int seconds()const{return seconds_;}int selected()const{return row_*3+column_;}int remaining(int i)const{return moles_.at(i).remaining;}
+ bool active()const{return active_;}int score()const{return score_;}int seconds()const{return seconds_;}int selected()const{return row_*3+column_;}int hammer_pose()const{return hammer_;}int remaining(int i)const{return moles_.at(i).remaining;}
  bool start(int type=0x57){if(active_||type!=0x57)return false;*this=Stage2Minigame{};active_=true;
   constexpr int xs[]={64,240,412,54,240,422,44,240,438};constexpr int ys[]={50,50,50,150,150,150,278,278,278};
   for(int i=0;i<9;++i)moles_[i]={xs[i],ys[i],xs[i],ys[i]};return true;}
@@ -29,11 +29,15 @@ public:
   number(seconds_,"n1-",70,20);number(score_,"n2-",310,25);
   for(int row=0;row<3;++row){for(int col=0;col<3;++col){auto&m=moles_[row*3+col];auto&im=a.image(m.hit?"mole_dam.app":"mole.app");f.blit(im,m.x,m.y,true,0,0,im.width,im.height);}draw(a,f,"board"+std::to_string(row+2)+".app",0,row==0?174:row==1?281:405);}
   draw(a,f,"hammer"+std::to_string(hammer_+1)+".app",hx_,hy_);
+  if(!in.space)action_ready_=true;if(!action_ready_)in.space=false;
+  if(in.space&&!space_down_)strike_pending_=true;space_down_=in.space;
+  pending_.up|=in.up&&!previous_.up;pending_.down|=in.down&&!previous_.down;
+  pending_.left|=in.left&&!previous_.left;pending_.right|=in.right&&!previous_.right;previous_=in;
   // Faster mole/hammer motion; the countdown is independent wall-clock time.
   if(step_started_&&now-step_clock_<33)return o;
   step_started_=true;step_clock_=now;
-  if(in.left&&!previous_.left&&column_>0)--column_;if(in.right&&!previous_.right&&column_<2)++column_;if(in.up&&!previous_.up&&row_>0)--row_;if(in.down&&!previous_.down&&row_<2)++row_;
-  if(in.space&&!latch_)latch_=1;else if(!in.space&&latch_&&hammer_==2)latch_=0;
+  if(pending_.left&&column_>0)--column_;if(pending_.right&&column_<2)++column_;if(pending_.up&&row_>0)--row_;if(pending_.down&&row_<2)++row_;pending_=Input{};
+  if(strike_pending_&&!latch_&&hammer_==0){latch_=1;strike_pending_=false;}else if(!in.space&&latch_&&hammer_==2)latch_=0;
   if(latch_&&hammer_<2){hy_+=80;++hammer_;auto&m=moles_[selected()];if(hammer_==2&&!m.hit&&m.remaining>0){++score_;m.hit=1;o.sounds.push_back("RESOURCE/punch2.wav");}}
   else if(!latch_&&hammer_>0){hy_-=80;--hammer_;}
   hx_+=(40+column_*200-hx_)/2;hy_+=(-80+row_*150-hy_)/2;

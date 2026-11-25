@@ -28,8 +28,10 @@ python tools/resource_browser/decode_apps.py build/resource-review/extracted bui
 python tools/launch.py --stage 7 --exe "你的发行目录/SHIN.exe"
 python tools/launch.py --boss 7 --exe "你的发行目录/SHIN.exe"
 python tools/launch.py --bonus mole --exe "你的发行目录/SHIN.exe"
-python tools/launch.py --menu --width 3440 --height 1440 --exe "你的发行目录/SHIN.exe"
+python tools/launch.py --menu --windowed --width 3440 --height 1440 --exe "你的发行目录/SHIN.exe"
 ```
+
+PC 默认按显示器尺寸全屏启动，F11 切换窗口／全屏，主菜单 Esc 重置重绘并重新计时；验证指定窗口尺寸时加 `--windowed`。
 
 默认使用 `build/Release/SHIN_Level1.exe`；素材由游戏查找可执行文件旁的 `assets/`，也可用 `--assets "完整路径/RESOURCE.RES"` 指定。默认传入 `--fresh-start`，不加载或写入正式进度存档；需要实际验证存档时显式传 `--use-save`。游戏仍可能生成配置和诊断日志。
 
@@ -59,7 +61,7 @@ python tools/quick_check.py --test companion_hud_test --argument "你的素材�
 
 默认构建所选目标后执行；已有构建可用 `--no-build`，自定义构建目录用 `--build-dir`。
 
-- `core`：更新时钟、菜单流程、菜单 40～200 秒完整重复时序、存档恢复。时间戳模拟不需要真实等待 200 秒。
+- `core`：更新时钟、菜单流程、菜单 40～200 秒完整重复时序、存档恢复、真彩色绘制及界面音乐缓存所有权。时间戳模拟不需要真实等待 200 秒。
 - `resources`：完整资源格式校验，需要本地 RESOURCE.RES。
 - `audio`：菜单音频事件、音效队列和音乐交接，会调用本机音频设备；API 成功不等于已经人工确认音质。
 - `--test`：现有任意 CMake 检测目标；参数用 `--argument` 传入，具体约定查看对应 `tests/*_test.cpp`。
@@ -85,3 +87,17 @@ powershell -NoProfile -ExecutionPolicy RemoteSigned -File tools/original/Launch_
 ## 维护约定
 
 运行工具产生的 build、提取素材、PNG、音轨、进程日志、个人密钥和游戏存档不得提交。新增跳转优先扩展 launch.py；新增检测优先建 CMake 目标并在 quick_check.py 登记。修改菜单声音时同时检查单次事件、完整重复周期、离开停止和重新进入后的计时重置。改进解码器时保留原始数据一致性验证，并在实际设备上试听。
+
+## 手工修补透明 PNG 接入
+
+`convert_png_overlay.py` 将 8 位 RGBA、非隔行 PNG 原样转换成跨平台覆盖素材，保留颜色和 alpha，不做缩放、去水印或描边：
+
+```powershell
+python tools/convert_png_overlay.py "你的修补图.png" "你的素材目录/overrides/savebg.rgba"
+```
+
+选关背景须为 640×480。SHRGBA1 文件由 8 字节 magic（包含末尾零）、小端 uint32 宽／高及逐行 RGBA 四字节像素组成。游戏从 RESOURCE.RES 所在目录的 overrides/savebg.rgba 读取；文件存在时使用手工前景、透明区域显示原背景，并跳过旧脚部自动修补。没有覆盖素材时仍可使用原资源。手工图像通过独立 RGB 层绘制，不量化到原 256 色；电视雪花、卡带等动态对象照常叠加。
+
+修补 PNG 及转换出的 RGBA 属于本地素材，不自动纳入公开源码。重新修改 PNG 后需要重新转换，运行中的缓存需重启游戏才会更新。
+
+Switch 的 InterfaceMusicCache 仅保留 CD2／CD3 界面曲目，停止播放不会销毁两首缓存；关卡音乐不进入此缓存。维护菜单跳转时检查停止语义与预解码复用，避免返回路径重新在主线程解码整曲。

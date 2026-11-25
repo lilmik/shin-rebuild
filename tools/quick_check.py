@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
     if not args.test and args.suite != 'core' and not args.assets:
         parser.error('This suite requires --assets')
-    targets = {'core': ['update_clock_test', 'game_flow_test', 'menu_idle_timing_test', 'progress_save_test'],
+    targets = {'core': ['update_clock_test', 'game_flow_test', 'menu_idle_timing_test', 'progress_save_test', 'truecolor_surface_test', 'interface_music_cache_test'],
                'resources': ['verify_resources'],
                'audio': ['menu_idle_timing_test', 'audio_dispatch_test', 'audio_worker_test',
                          'music_transition_benchmark']}[args.suite]

@@ -1,0 +1,31 @@
+name: Linux and macOS Universal
+on:
+  workflow_dispatch:
+  push:
+    branches: [port/linux-macos-universal]
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-mixer-dev libgl1-mesa-dri
+      - run: cmake -S . -B build/linux -DCMAKE_BUILD_TYPE=Release && cmake --build build/linux --parallel 3 --target shin_portable
+      - run: build/linux/platforms/desktop/SHIN --help
+      - run: mkdir -p dist/SHIN_Linux_0.3.26/assets && cp build/linux/platforms/desktop/SHIN dist/SHIN_Linux_0.3.26/ && cp platforms/desktop/README.md LICENSE dist/SHIN_Linux_0.3.26/ && tar -C dist -czf dist/SHIN_Linux_0.3.26_source-only-assets-excluded.tar.gz SHIN_Linux_0.3.26
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SHIN-Linux-x86_64
+          path: dist/*.tar.gz
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash platforms/desktop/build_macos.sh
+      - run: mkdir -p dist && ditto -c -k --sequesterRsrc --keepParent build/macos-universal/platforms/desktop/SHIN.app dist/SHIN_macOS_0.3.26_Universal_assets-excluded.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SHIN-macOS-Universal
+          path: dist/*.zip

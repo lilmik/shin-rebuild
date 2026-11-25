@@ -1,5 +1,6 @@
 #pragma once
 #include "resource_archive.hpp"
+#include "rgba_overlay.hpp"
 #include "../graphics/indexed_surface.hpp"
 #include <array>
 #include <map>
@@ -7,10 +8,11 @@
 namespace shin {
 class AssetStore {
  ResourceArchive archive_;
+ std::filesystem::path root_;
  std::map<std::string,std::size_t> entries_;
  std::map<std::string,IndexedSurface> images_;
 public:
- explicit AssetStore(const std::string& path):archive_(path){
+ explicit AssetStore(const std::string& path):archive_(path),root_(std::filesystem::path(path).parent_path()){
   for(std::size_t i=0;i<archive_.entries().size();++i)entries_.emplace(archive_.entries()[i].name,i);
  }
  std::vector<unsigned char> bytes(const std::string& name)const{
@@ -21,6 +23,14 @@ public:
   auto dot=name.rfind('.');if(dot!=std::string::npos&&name.substr(dot)==".raw")name.replace(dot,4,".app");
   auto it=images_.find(name);if(it!=images_.end())return it->second;
   if(name=="selector_fixed_tapes.app"){
+   const auto&background=image("savebg.app");
+   if(!background.color_pixels.empty()){
+    IndexedSurface fixed(69,117,254);fixed.color_pixels.assign(69*117,0);
+    for(int y=0;y<117;++y)for(int x=0;x<69;++x){auto c=background.color_pixels[(199+y)*640+438+x];int r=(c>>16)&255,g=(c>>8)&255,b=c&255;
+     if(std::max({r,g,b})-std::min({r,g,b})<=8){fixed.pixels[y*69+x]=0;fixed.color_pixels[y*69+x]=c;}
+    }
+    return images_.emplace(name,std::move(fixed)).first->second;
+   }
    auto original=decode_app(bytes("savebg.app"));auto colors=decode_palette(bytes("shin.pal"));
    IndexedSurface fixed(69,117);fixed.pixels.assign(69*117,254);
    for(int y=0;y<117;++y)for(int x=0;x<69;++x){auto index=original.indices[(199+y)*640+438+x];auto c=colors[index];
@@ -29,6 +39,10 @@ public:
    return images_.emplace(name,std::move(fixed)).first->second;
   }
   auto app=decode_app(bytes(name));IndexedSurface surface(int(app.width),int(app.height));surface.pixels=std::move(app.indices);
+  // CUSTOM's selected sprite has six stray pixels on its final row, separated
+  // from the lettering by two empty rows. Preserve the glyphs and alignment.
+  if(name=="ssc3.app"&&surface.width==301&&surface.height==70)
+   std::fill(surface.pixels.begin()+69*301+135,surface.pixels.begin()+69*301+141,254);
   if(name=="scrolla.app"||name=="scrollb.app"){
    auto base=decode_app(bytes("scroll.app"));auto colors=decode_palette(bytes("shin.pal"));
    int ox=name=="scrolla.app"?330:483,oy=name=="scrolla.app"?167:164;
@@ -56,6 +70,16 @@ public:
     for(auto&c:pattern)c=colors[c];
    }
    if(name=="savebg.app"){
+    auto edited=read_rgba_overlay(root_/"overrides"/"savebg.rgba",640,480);
+    if(!edited.empty()){
+     // Manual artwork replaces the complete foreground. Alpha reveals the
+     // existing wallpaper; do not run the old foot cleanup or contour repair.
+     auto colors=decode_palette(bytes("shin.pal"));surface.pixels=pattern;surface.color_pixels.resize(pattern.size());
+     for(size_t i=0;i<pattern.size();++i){auto bg=colors[pattern[i]];unsigned alpha=edited[i*4+3];
+      auto blend=[&](unsigned c,unsigned background){return (c*alpha+background*(255-alpha)+127)/255;};
+      surface.color_pixels[i]=0xff000000u|(blend(edited[i*4],bg.red)<<16)|(blend(edited[i*4+1],bg.green)<<8)|blend(edited[i*4+2],bg.blue);
+     }
+    }else{
     auto untouched=surface.pixels;
     auto colors=decode_palette(bytes("shin.pal"));std::vector<unsigned char> seen(640*480,0);std::vector<int> queue;
     auto add=[&](int i){if(seen[i])return;auto c=colors[surface.pixels[i]];if(c.red<144||c.green<144||c.blue<144||std::max({c.red,c.green,c.blue})-std::min({c.red,c.green,c.blue})>80)return;seen[i]=1;queue.push_back(i);};
@@ -79,7 +103,7 @@ public:
     for(int y=74;y<187;++y)for(int x=383;x<411;++x)surface.pixels[y*640+x]=upper;
     // The two white lower tapes are fixed scenery, not selection sprites.
     for(int y=199;y<316;++y)for(int x=445;x<507;++x)surface.pixels[y*640+x]=untouched[y*640+x];
-
+    }
    }
    surface.wallpaper=pattern;
    for(std::size_t i=0;i<pattern.size();++i)if(name!="savebg.app"&&(name=="tt0001.app"||(name=="gmover.app"?surface.pixels[i]==original.indices[i]:(name=="evframe.app"?(int(i%640)<138||int(i%640)>501||int(i/640)<114||int(i/640)>366):surface.pixels[i]==original.indices[i]))))surface.pixels[i]=pattern[i];

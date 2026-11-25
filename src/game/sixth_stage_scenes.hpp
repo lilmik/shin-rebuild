@@ -10,6 +10,7 @@ class SixthStageScenes {
  struct Actor{int type,x,y,vy=0,frame=0,tick=0;};std::vector<Actor>actors_;int type_=0,phase_=0,frame_=0,tick_=0;unsigned began_=0;bool active_=false,enterheld_=false;
  static void restore(PlayerPayload&p){p.at(0x5c)=0;p.at(0x18)=0x45c714;p.at(0x1c)=p.at(0x20)=0;p.at(0x24)=1;p.at(0x28)=100;p.at(0x54)=0;}
 public:
+ template<class F> void visit_actors(F&&f)const{for(const auto&a:actors_)f(a.type,a.x,a.y);}
  bool advance_stage_requested=false;
  bool active()const{return active_;}bool exiting()const{return active_&&type_==0x70;}
  bool begin(int type,unsigned now,PlayerPayload&p,const std::function<void(unsigned)>&sound){if(active_||(type!=0x6f&&type!=0x70))return false;type_=type;began_=now;phase_=frame_=tick_=0;enterheld_=false;active_=true;advance_stage_requested=false;actors_.clear();p.at(0xfc)=0;p.at(0x54)=0;if(type==0x70){actors_={{0x3b,p.at(8)+300,p.at(12)-200},{0x29,p.at(8)+360,p.at(12)-200},{0x27,p.at(8)-300,p.at(12)-200},{0x28,p.at(8)-340,p.at(12)-200}};p.at(0x5c)=0x77;}else{p.at(0x5c)=0x59;if(sound)sound(0x78f228);}return true;}

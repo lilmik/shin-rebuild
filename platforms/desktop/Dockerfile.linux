@@ -1,0 +1,3 @@
+FROM devkitpro/devkita64:latest
+RUN apt-get update && apt-get install -y --no-install-recommends libsdl2-dev libsdl2-mixer-dev libgl1-mesa-dri xvfb xauth patchelf && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

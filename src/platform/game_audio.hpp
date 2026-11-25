@@ -42,6 +42,9 @@ public:
  bool play_sound(unsigned id,bool loop=false);bool play_file(const std::string&,unsigned id=0,bool loop=false);
  void play_wav(const std::string&file,bool loop=false){if(!play_file(file,0,loop))report_audio_error("Sound unavailable: "+file);journal.push_back({file,loop});}
  void stop_sound(unsigned);void stop_music();bool play_track(unsigned,bool restart=false);
+ std::map<unsigned,FlacMusic::Track>interface_pcm_;
+ FlacMusic::Track interface_pcm(unsigned);
+ bool prepare_interface_music();
  bool prepare_track(unsigned);
  void bind_track(unsigned track,std::string file){tracks_[track]=std::move(file);}
  bool load_inmm_playlist();

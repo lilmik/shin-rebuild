@@ -25,6 +25,7 @@ def main():
     target.add_argument('--boss', type=int, choices=range(1, 8))
     target.add_argument('--bonus', choices=BONUS)
     target.add_argument('--menu', action='store_true')
+    parser.add_argument('--windowed', action='store_true', help='Start in a window; otherwise the game starts fullscreen')
     parser.add_argument('--width', type=int, default=1280)
     parser.add_argument('--height', type=int, default=720)
     parser.add_argument('--use-save', action='store_true', help='Opt in to normal save loading/writes')
@@ -35,6 +36,8 @@ def main():
     if args.width <= 0 or args.height <= 0 or args.frames <= 0:
         parser.error('width, height and frames must be positive')
     command = [str(args.exe.resolve()), '--width', str(args.width), '--height', str(args.height)]
+    if args.windowed:
+        command += ['--windowed']
     if not args.use_save:
         command += ['--fresh-start']
     if args.assets:

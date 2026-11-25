@@ -13,7 +13,7 @@ class FinalEncounter {
  FinalBossIntro timeline_;Pose pp_,rp_,np_,prop_;int rxstate_=6,nxstate_=6,propx_=0,propy_=0,propvy_=0;bool propactive_=false;
 public:
  std::unique_ptr<FinalBossActor>robot,nurse;bool active()const{return timeline_.active();}bool completed()const{return timeline_.finished;}
- bool focus_bounds(int&left,int&right,int&top,int&bottom)const{bool found=false;for(auto*b:{robot.get(),nurse.get()})if(b&&!b->defeated){int x=b->payload.words[1],y=b->payload.words[2];auto r=b->rectangle();if(!found){left=x+r[0];right=x+r[2];top=y+r[1];bottom=y+r[3];}else{left=std::min(left,x+r[0]);right=std::max(right,x+r[2]);top=std::min(top,y+r[1]);bottom=std::max(bottom,y+r[3]);}found=true;}if(propactive_&&found){
+ bool focus_bounds(int&left,int&right,int&top,int&bottom)const{bool found=false;for(auto*b:{robot.get(),nurse.get()})if(b&&!b->defeated){int x=b->payload.words[1],y=b->payload.words[2];game::CollisionRect r={0,0,b->payload.words[b==robot.get()?3:25],b->payload.words[b==robot.get()?4:26]};if(!found){left=x+r[0];right=x+r[2];top=y+r[1];bottom=y+r[3];}else{left=std::min(left,x+r[0]);right=std::max(right,x+r[2]);top=std::min(top,y+r[1]);bottom=std::max(bottom,y+r[3]);}found=true;}if(propactive_&&found){
  // Frame the complete 426px actor at its landing height, not its offscreen birth.
  const int visible_y=std::max(propy_,bottom-426);
  left=std::min(left,propx_);right=std::max(right,propx_+198);

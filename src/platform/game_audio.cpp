@@ -53,12 +53,18 @@ bool GameAudio::play_file(const std::string& relative,unsigned id,bool loop){
  return true;
 }
 void GameAudio::stop_sound(unsigned id){events_.push_back({"stop_sound","",id,false});if(!silent_)enqueue_sound([this,id]{auto it=voices_.find(id);if(it!=voices_.end())it->second->pause();});}
+FlacMusic::Track GameAudio::interface_pcm(unsigned track){
+ if(track!=2&&track!=3)return {};auto it=interface_pcm_.find(track);if(it!=interface_pcm_.end())return it->second;
+ auto path=root_/tracks_.at(track);if(path.extension()!=".flac")return {};
+ auto decoded=FlacMusic::load_pcm(path.wstring());if(decoded)interface_pcm_.emplace(track,decoded);return decoded;
+}
+bool GameAudio::prepare_interface_music(){return true;}
 bool GameAudio::prepare_track(unsigned track){
  if(silent_||active_track_==track||prepared_track_==track)return true;
  prepared_music_.reset();prepared_track_=0;
  auto it=tracks_.find(track);if(it==tracks_.end())return false;
  auto file=root_/it->second;if(file.extension()!=".flac")return true;
- auto next=std::make_unique<FlacMusic>();if(!next->start(file.wstring(),music_volume_,true))return false;
+ auto next=std::make_unique<FlacMusic>();if(!next->start(file.wstring(),music_volume_,true,true,{}))return false;
  auto begin=GetTickCount64();while(!next->buffered()){if(GetTickCount64()-begin>=10000)return false;Sleep(1);}
  prepared_music_=std::move(next);prepared_track_=track;return true;
 }
@@ -68,7 +74,7 @@ bool GameAudio::play_track(unsigned track,bool restart){
  if(file.extension()==".flac"){
   std::unique_ptr<FlacMusic>next;
   if(prepared_track_==track){next=std::move(prepared_music_);prepared_track_=0;next->set_volume(music_volume_);next->resume();}
-  else{prepared_music_.reset();prepared_track_=0;next=std::make_unique<FlacMusic>();if(!next->start(file.wstring(),music_volume_)){music_result_=E_FAIL;return false;}}
+  else{prepared_music_.reset();prepared_track_=0;next=std::make_unique<FlacMusic>();if(!next->start(file.wstring(),music_volume_,false,true,{})){music_result_=E_FAIL;return false;}}
   if(retiring_flac_music_)flac_music_.reset();else retiring_flac_music_=std::move(flac_music_);
   flac_music_=std::move(next);flac_loops_=0;active_track_=track;music_seen_playing_=false;music_result_=S_OK;events_.push_back({"play_track",it->second,track,true});return true;
  }

@@ -8,6 +8,9 @@
 #include <stdexcept>
 #include <thread>
 #include <atomic>
+#include <cmath>
+#include <cstdlib>
+#include "../graphics/gpu/presenter.hpp"
 namespace shin::platform {
 LRESULT CALLBACK NativeWindow::proc(HWND w,UINT m,WPARAM a,LPARAM b){
  auto self=reinterpret_cast<NativeWindow*>(GetWindowLongPtrW(w,GWLP_USERDATA));
@@ -16,18 +19,26 @@ LRESULT CALLBACK NativeWindow::proc(HWND w,UINT m,WPARAM a,LPARAM b){
  if(m==WM_ERASEBKGND)return 1;
  if((m==WM_KEYDOWN||m==WM_SYSKEYDOWN)&&a==VK_F11){if(!(b&(LPARAM(1)<<30)))self->toggle_fullscreen();return 0;}
  if((m==WM_KEYUP||m==WM_SYSKEYUP)&&a==VK_F11)return 0;
+ if((m==WM_KEYDOWN||m==WM_SYSKEYDOWN)&&a==VK_F10){if(!(b&(LPARAM(1)<<30)))self->cycle_scale_mode();return 0;}
+ if((m==WM_KEYUP||m==WM_SYSKEYUP)&&a==VK_F10)return 0;
  if(self->input_.message(m,static_cast<std::uint32_t>(a))){if(m==WM_DESTROY)PostQuitMessage(0);return 1;}}
  return DefWindowProcW(w,m,a,b);
 }
-NativeWindow::NativeWindow(const wchar_t* title,int width,int height):width_(width),height_(height){
+NativeWindow::NativeWindow(const wchar_t* title,int width,int height,bool start_fullscreen):width_(width),height_(height){
+ if(const char*mode=std::getenv("SHIN_SCALE_MODE"))scale_mode_=std::clamp(std::atoi(mode),0,2);
  auto set_dpi=reinterpret_cast<BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT)>(GetProcAddress(GetModuleHandleW(L"user32.dll"),"SetProcessDpiAwarenessContext"));if(set_dpi)set_dpi(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
  if(width<=0||height<=0||width>4096||height>4096)throw std::invalid_argument("invalid framebuffer size");rgb_.resize(std::size_t(width)*height);
- WNDCLASSW c{};c.lpfnWndProc=proc;c.hInstance=GetModuleHandleW(nullptr);c.lpszClassName=L"ShinRebuiltWindow";c.hIcon=static_cast<HICON>(LoadImageW(c.hInstance,MAKEINTRESOURCEW(101),IMAGE_ICON,GetSystemMetrics(SM_CXICON),GetSystemMetrics(SM_CYICON),LR_SHARED));c.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));
+ WNDCLASSW c{};c.style=CS_OWNDC;c.lpfnWndProc=proc;c.hInstance=GetModuleHandleW(nullptr);c.lpszClassName=L"ShinRebuiltWindow";c.hIcon=static_cast<HICON>(LoadImageW(c.hInstance,MAKEINTRESOURCEW(101),IMAGE_ICON,GetSystemMetrics(SM_CXICON),GetSystemMetrics(SM_CYICON),LR_SHARED));c.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));
  if(!RegisterClassW(&c)&&GetLastError()!=ERROR_CLASS_ALREADY_EXISTS)throw std::runtime_error("RegisterClass failed");
  RECT r{0,0,width,height};AdjustWindowRect(&r,WS_OVERLAPPEDWINDOW,FALSE);
  window_=CreateWindowW(c.lpszClassName,title,WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,r.right-r.left,r.bottom-r.top,nullptr,nullptr,c.hInstance,this);
- if(!window_)throw std::runtime_error("CreateWindow failed");SendMessageW(window_,WM_SETICON,ICON_BIG,reinterpret_cast<LPARAM>(c.hIcon));SendMessageW(window_,WM_SETICON,ICON_SMALL,reinterpret_cast<LPARAM>(LoadImageW(c.hInstance,MAKEINTRESOURCEW(101),IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_SHARED)));ShowWindow(window_,SW_SHOW);UpdateWindow(window_);
+ if(!window_)throw std::runtime_error("CreateWindow failed");
+ gpu_dc_=GetDC(window_);PIXELFORMATDESCRIPTOR pf{};pf.nSize=sizeof(pf);pf.nVersion=1;pf.dwFlags=PFD_DRAW_TO_WINDOW|PFD_SUPPORT_OPENGL|PFD_DOUBLEBUFFER;pf.iPixelType=PFD_TYPE_RGBA;pf.cColorBits=32;int format=ChoosePixelFormat(gpu_dc_,&pf);if(!format||!SetPixelFormat(gpu_dc_,format,&pf))throw std::runtime_error("GPU pixel format unavailable");gpu_context_=wglCreateContext(gpu_dc_);if(!gpu_context_||!wglMakeCurrent(gpu_dc_,gpu_context_))throw std::runtime_error("GPU context unavailable");
+ using SwapInterval=BOOL(WINAPI*)(int);using GetInterval=int(WINAPI*)();auto swap_interval=reinterpret_cast<SwapInterval>(wglGetProcAddress("wglSwapIntervalEXT"));auto get_interval=reinterpret_cast<GetInterval>(wglGetProcAddress("wglGetSwapIntervalEXT"));if(swap_interval&&reinterpret_cast<std::intptr_t>(swap_interval)>3)vsync_enabled_=swap_interval(1)&&(!get_interval||get_interval()==1);
+ gpu_=std::make_unique<shin::GpuPresenter>([](const char*name)->void*{auto p=wglGetProcAddress(name);auto v=reinterpret_cast<std::intptr_t>(p);if(!p||v==1||v==2||v==3||v==-1)p=reinterpret_cast<PROC>(GetProcAddress(GetModuleHandleW(L"opengl32.dll"),name));return reinterpret_cast<void*>(p);});std::ofstream("gpu_renderer.log")<<gpu_->renderer()<<"\nvsync="<<vsync_enabled_<<"\nOpenGL GPU scaling: nearest / bilinear / xBRZ freescale\n";
+SendMessageW(window_,WM_SETICON,ICON_BIG,reinterpret_cast<LPARAM>(c.hIcon));SendMessageW(window_,WM_SETICON,ICON_SMALL,reinterpret_cast<LPARAM>(LoadImageW(c.hInstance,MAKEINTRESOURCEW(101),IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_SHARED)));if(start_fullscreen){toggle_fullscreen();windowed_placement_.showCmd=SW_SHOWNORMAL;}ShowWindow(window_,SW_SHOW);UpdateWindow(window_);
 }
+void NativeWindow::cycle_scale_mode(){scale_mode_=(scale_mode_+1)%3;scale_notice_until_=GetTickCount64()+2500;InvalidateRect(window_,nullptr,FALSE);}
 void NativeWindow::toggle_fullscreen(){
  if(!fullscreen_){MONITORINFO monitor{sizeof(MONITORINFO)};if(!GetMonitorInfoW(MonitorFromWindow(window_,MONITOR_DEFAULTTONEAREST),&monitor))return;
  windowed_style_=GetWindowLongPtrW(window_,GWL_STYLE);windowed_ex_style_=GetWindowLongPtrW(window_,GWL_EXSTYLE);windowed_placement_.length=sizeof(WINDOWPLACEMENT);if(!GetWindowPlacement(window_,&windowed_placement_))return;
@@ -36,24 +47,12 @@ void NativeWindow::toggle_fullscreen(){
  InvalidateRect(window_,nullptr,FALSE);
 }
 void NativeWindow::release_backbuffer(){if(back_dc_&&back_previous_)SelectObject(back_dc_,back_previous_);if(back_bitmap_)DeleteObject(back_bitmap_);if(back_dc_)DeleteDC(back_dc_);back_dc_=nullptr;back_bitmap_=nullptr;back_previous_=nullptr;back_width_=back_height_=0;}
-NativeWindow::~NativeWindow(){if(IsWindow(window_))DestroyWindow(window_);release_backbuffer();}
+NativeWindow::~NativeWindow(){gpu_.reset();if(gpu_context_){wglMakeCurrent(nullptr,nullptr);wglDeleteContext(gpu_context_);}if(gpu_dc_)ReleaseDC(window_,gpu_dc_);if(IsWindow(window_))DestroyWindow(window_);release_backbuffer();}
 bool NativeWindow::pump(){MSG m;while(PeekMessageW(&m,nullptr,0,0,PM_REMOVE)){if(m.message==WM_QUIT)return false;TranslateMessage(&m);DispatchMessageW(&m);}return !input_.quit_requested;}
-void NativeWindow::present(const std::uint8_t* p,const std::array<std::uint32_t,256>& palette){if(!p)throw std::invalid_argument("null pixels");for(std::size_t i=0;i<rgb_.size();++i)rgb_[i]=palette[p[i]];InvalidateRect(window_,nullptr,FALSE);UpdateWindow(window_);}
-void NativeWindow::present(const std::uint8_t*p,const std::array<std::uint32_t,256>&palette,int w,int h,const std::uint32_t*border){if(w<=0||h<=0)return;width_=w;height_=h;rgb_.resize(std::size_t(w)*h);for(std::size_t i=0;i<rgb_.size();++i)rgb_[i]=border&&border[i]?border[i]&0xffffffu:palette[p[i]];InvalidateRect(window_,nullptr,FALSE);UpdateWindow(window_);}
-void NativeWindow::paint(HDC dc){
- RECT r;GetClientRect(window_,&r);int w=r.right,h=r.bottom;if(w<=0||h<=0)return;
- // Compose the complete client area off-screen; expose it in one BitBlt.
- // Clearing the visible DC first allowed the compositor to show a black frame.
- if(w!=back_width_||h!=back_height_||!back_dc_){release_backbuffer();back_dc_=CreateCompatibleDC(dc);back_bitmap_=CreateCompatibleBitmap(dc,w,h);if(back_dc_&&back_bitmap_){back_previous_=SelectObject(back_dc_,back_bitmap_);back_width_=w;back_height_=h;}else{release_backbuffer();return;}}
- HDC back=back_dc_;
+void NativeWindow::present(const std::uint8_t* p,const std::array<std::uint32_t,256>& palette){if(!p)throw std::invalid_argument("null pixels");for(std::size_t i=0;i<rgb_.size();++i)rgb_[i]=palette[p[i]];if(gpu_){paint(gpu_dc_);return;}InvalidateRect(window_,nullptr,FALSE);UpdateWindow(window_);}
+void NativeWindow::present(const std::uint8_t*p,const std::array<std::uint32_t,256>&palette,int w,int h,const std::uint32_t*border){if(w<=0||h<=0)return;width_=w;height_=h;rgb_.resize(std::size_t(w)*h);for(std::size_t i=0;i<rgb_.size();++i)rgb_[i]=border&&border[i]?border[i]&0xffffffu:palette[p[i]];if(gpu_){paint(gpu_dc_);return;}InvalidateRect(window_,nullptr,FALSE);UpdateWindow(window_);}
+void NativeWindow::paint(HDC){RECT r{};GetClientRect(window_,&r);if(!gpu_||r.right<=0||r.bottom<=0)return;wglMakeCurrent(gpu_dc_,gpu_context_);const char*names[]={"1/3 GPU NEAREST","2/3 GPU BILINEAR","3/3 GPU XBRZ"};gpu_->draw(rgb_.data(),width_,height_,r.right,r.bottom,scale_mode_,GetTickCount64()<scale_notice_until_?names[scale_mode_]:nullptr);if(const char*path=std::getenv("SHIN_GPU_CAPTURE")){static int captures=0;if(++captures==60)gpu_->capture(path,r.right,r.bottom);}SwapBuffers(gpu_dc_);if(!vsync_enabled_){using Flush=HRESULT(WINAPI*)();static HMODULE dwm=LoadLibraryW(L"dwmapi.dll");static Flush flush=dwm?reinterpret_cast<Flush>(GetProcAddress(dwm,"DwmFlush")):nullptr;if(flush)flush();}}
 
- FillRect(back,&r,static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
- double scale=std::min(double(w)/width_,double(h)/height_);int dw=int(width_*scale),dh=int(height_*scale);
- BITMAPINFO bi{};bi.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);bi.bmiHeader.biWidth=width_;bi.bmiHeader.biHeight=-height_;bi.bmiHeader.biPlanes=1;bi.bmiHeader.biBitCount=32;bi.bmiHeader.biCompression=BI_RGB;
- SetStretchBltMode(back,COLORONCOLOR);int result=StretchDIBits(back,(w-dw)/2,(h-dh)/2,dw,dh,0,0,width_,height_,rgb_.data(),&bi,DIB_RGB_COLORS,SRCCOPY);
- if(result!=GDI_ERROR&&result!=0)BitBlt(dc,0,0,w,h,back,0,0,SRCCOPY);
-
-}
 void WavSound::stop(){if(device_){waveOutReset(device_);if(prepared_)waveOutUnprepareHeader(device_,&header_,sizeof(header_));waveOutClose(device_);}device_=nullptr;prepared_=false;header_={};}
 bool WavSound::load(const std::wstring& path){stop();data_.clear();if(std::filesystem::path(path).extension()==L".flac"){
  auto*d=drflac_open_file_w(path.c_str(),nullptr);if(!d)return false;
@@ -75,18 +74,22 @@ bool WavSound::play(bool loop){
 }
 struct FlacMusic::State {
  struct Buffer{WAVEHDR header{};std::vector<drflac_int16>pcm;bool prepared=false,queued=false;};
- // The complete, unscaled PCM track is owned here. No decoder or file handle
- // survives preparation; the output worker only copies and scales samples.
- std::vector<drflac_int16>samples;size_t cursor=0;std::vector<Buffer>buffers;HWAVEOUT device=nullptr;HANDLE event=nullptr;std::thread worker;
+ // Interface playback shares immutable predecoded PCM. Gameplay playback owns
+ // a streaming decoder, accessed only by the output worker and closed on stop.
+ Track track;drflac*decoder=nullptr;size_t cursor=0;std::vector<Buffer>buffers;HWAVEOUT device=nullptr;HANDLE event=nullptr;std::thread worker;
  std::atomic<bool>requested{true},started{false};
  std::atomic<bool>closing{false},ready{false};std::atomic<int>gain{24576};std::atomic<unsigned>loop_count{0};
- ~State(){closing=true;if(event)SetEvent(event);if(worker.joinable())worker.join();if(device){waveOutReset(device);for(auto&b:buffers)if(b.prepared)waveOutUnprepareHeader(device,&b.header,sizeof(b.header));waveOutClose(device);}if(event)CloseHandle(event);}
+ ~State(){closing=true;if(event)SetEvent(event);if(worker.joinable())worker.join();if(device){waveOutReset(device);for(auto&b:buffers)if(b.prepared)waveOutUnprepareHeader(device,&b.header,sizeof(b.header));waveOutClose(device);}if(event)CloseHandle(event);if(decoder)drflac_close(decoder);}
  void run(){
   bool primed=false;
   while(!closing){
    for(auto&b:buffers){if(closing)break;if(b.queued&&!(b.header.dwFlags&WHDR_DONE))continue;
     size_t done=0;
-    while(done<b.pcm.size()&&!closing){auto count=std::min(b.pcm.size()-done,samples.size()-cursor);std::copy_n(samples.data()+cursor,count,b.pcm.data()+done);done+=count;cursor+=count;if(cursor==samples.size()){cursor=0;++loop_count;}}
+    while(done<b.pcm.size()&&!closing){
+     if(decoder){auto got=drflac_read_pcm_frames_s16(decoder,(b.pcm.size()-done)/decoder->channels,b.pcm.data()+done);done+=size_t(got)*decoder->channels;
+      if(!got){if(!drflac_seek_to_pcm_frame(decoder,0)||!drflac_read_pcm_frames_s16(decoder,1,b.pcm.data()+done)){ready=false;return;}done+=decoder->channels;++loop_count;}
+     }else{auto count=std::min(b.pcm.size()-done,track->samples.size()-cursor);std::copy_n(track->samples.data()+cursor,count,b.pcm.data()+done);done+=count;cursor+=count;if(cursor==track->samples.size()){cursor=0;++loop_count;}}
+    }
     if(closing)break;int factor=gain.load();for(auto&sample:b.pcm)sample=drflac_int16(int(sample)*factor/32768);
     b.header.dwBufferLength=DWORD(b.pcm.size()*sizeof(drflac_int16));if(waveOutWrite(device,&b.header,sizeof(b.header))!=MMSYSERR_NOERROR){ready=false;return;}b.queued=true;
    }
@@ -100,18 +103,24 @@ struct FlacMusic::State {
  }
 };
 FlacMusic::FlacMusic()=default;FlacMusic::~FlacMusic()=default;
-bool FlacMusic::start(const std::wstring&path,float volume,bool paused){
- auto s=std::make_unique<State>();
- auto close_decoder=[](drflac*p){if(p)drflac_close(p);};
- std::unique_ptr<drflac,decltype(close_decoder)>decoder(drflac_open_file_w(path.c_str(),nullptr),close_decoder);
- if(!decoder||decoder->bitsPerSample>16||!decoder->channels||decoder->channels>2||!decoder->sampleRate||!decoder->totalPCMFrameCount)return false;
- if(decoder->totalPCMFrameCount>s->samples.max_size()/decoder->channels)return false;
- s->samples.resize(size_t(decoder->totalPCMFrameCount)*decoder->channels);
- if(drflac_read_pcm_frames_s16(decoder.get(),decoder->totalPCMFrameCount,s->samples.data())!=decoder->totalPCMFrameCount)return false;
+FlacMusic::Track FlacMusic::load_pcm(const std::wstring&path){
+ auto close=[](drflac*p){if(p)drflac_close(p);};std::unique_ptr<drflac,decltype(close)>d(drflac_open_file_w(path.c_str(),nullptr),close);
+ if(!d||d->bitsPerSample>16||!d->channels||d->channels>2||!d->sampleRate||!d->totalPCMFrameCount)return {};
+ auto track=std::make_shared<PcmTrack>();track->channels=d->channels;track->rate=d->sampleRate;
+ if(d->totalPCMFrameCount>track->samples.max_size()/d->channels)return {};
+ track->samples.resize(size_t(d->totalPCMFrameCount)*d->channels);
+ if(drflac_read_pcm_frames_s16(d.get(),d->totalPCMFrameCount,track->samples.data())!=d->totalPCMFrameCount)return {};
+ return track;
+}
+bool FlacMusic::start(const std::wstring&path,float volume,bool paused,bool stream,Track cached){
+ auto s=std::make_unique<State>();unsigned channels=0,rate=0;
+ if(stream){s->decoder=drflac_open_file_w(path.c_str(),nullptr);auto*d=s->decoder;
+  if(!d||d->bitsPerSample>16||!d->channels||d->channels>2||!d->sampleRate||!d->totalPCMFrameCount)return false;
+  channels=d->channels;rate=d->sampleRate;
+ }else{s->track=cached?std::move(cached):load_pcm(path);if(!s->track)return false;channels=s->track->channels;rate=s->track->rate;}
  s->requested=!paused;
  s->gain=int(std::clamp(volume,0.0f,1.0f)*32768);s->event=CreateEventW(nullptr,FALSE,FALSE,nullptr);if(!s->event)return false;
- WAVEFORMATEX fmt{};fmt.wFormatTag=WAVE_FORMAT_PCM;fmt.nChannels=WORD(decoder->channels);fmt.nSamplesPerSec=decoder->sampleRate;fmt.wBitsPerSample=16;fmt.nBlockAlign=WORD(fmt.nChannels*2);fmt.nAvgBytesPerSec=fmt.nSamplesPerSec*fmt.nBlockAlign;
- decoder.reset();
+ WAVEFORMATEX fmt{};fmt.wFormatTag=WAVE_FORMAT_PCM;fmt.nChannels=WORD(channels);fmt.nSamplesPerSec=rate;fmt.wBitsPerSample=16;fmt.nBlockAlign=WORD(fmt.nChannels*2);fmt.nAvgBytesPerSec=fmt.nSamplesPerSec*fmt.nBlockAlign;
  if(waveOutOpen(&s->device,WAVE_MAPPER,&fmt,reinterpret_cast<DWORD_PTR>(s->event),0,CALLBACK_EVENT)!=MMSYSERR_NOERROR)return false;
  if(waveOutPause(s->device)!=MMSYSERR_NOERROR)return false;
  s->buffers.resize((fmt.nSamplesPerSec+2047)/2048);

@@ -1,6 +1,22 @@
 #include "../src/game/stage2_minigame.hpp"
-#include <cassert>
-#include <fstream>
-int main(int argc,char**argv){assert(argc>=2);shin::AssetStore a(argv[1]);shin::IndexedSurface f(640,480);shin::Stage2Minigame g;assert(g.start());auto first=g.tick(0,{},a,f);assert(first.cd==12&&first.palette);g.tick(16,{false,false,true},a,f);assert(g.selected()==3);g.tick(32,{false,false,true},a,f);assert(g.selected()==3);for(int i=3;i<1200;++i)g.tick(i*16,{},a,f);assert(!g.active()&&g.seconds()==0);assert(g.start());int now=0;for(int i=0;i<22;++i)g.tick(now+=16,{},a,f);auto hidden=f.pixels;for(int i=0;i<5;++i)g.tick(now+=16,{},a,f);assert(f.pixels!=hidden);auto visible_palette=a.palette("mole.pal");int white_face=0;for(int y=145;y<200;++y)for(int x=80;x<190;++x){auto c=visible_palette[f.pixels[y*640+x]];if(((c>>16)&255)>230&&((c>>8)&255)>230&&(c&255)>230)++white_face;}assert(white_face>500);if(argc>2){std::ofstream image(argv[2],std::ios::binary);auto pal=a.palette("mole.pal");image<<"P6\n640 480\n255\n";for(auto p:f.pixels){auto c=pal[p];char rgb[]={char(c>>16),char(c>>8),char(c)};image.write(rgb,3);}}int target=-1;for(int i=0;i<9;++i)if(g.remaining(i)>0)target=i;assert(target>=0);int row=target/3,col=target%3;
-if(row!=1){g.tick(now+=16,{row==0,row==2},a,f);g.tick(now+=16,{},a,f);}if(col!=1){g.tick(now+=16,{false,false,col==0,col==2},a,f);g.tick(now+=16,{},a,f);}assert(g.selected()==target);
-g.tick(now+=16,{false,false,false,false,true},a,f);auto hit=g.tick(now+=16,{false,false,false,false,true},a,f);assert(g.score()==1&&hit.sounds.size()==1);auto out=g.tick(0,{false,false,false,false,false,true},a,f);assert(out.finished&&!g.active());}
+#include <iostream>
+int main(int argc,char**argv){if(argc<2)return 1;shin::AssetStore assets(argv[1]);shin::IndexedSurface frame(640,480);shin::Stage2Minigame game;game.start();auto first=game.tick(0,{},assets,frame);if(first.cd!=12||!first.palette)return 2;
+ // A press and release entirely between two motion steps must still swing.
+ game.tick(5,{false,false,false,false,true},assets,frame);game.tick(10,{},assets,frame);
+ game.tick(34,{},assets,frame);if(game.hammer_pose()!=1)return 3;
+ game.tick(68,{},assets,frame);if(game.hammer_pose()!=2)return 4;
+ game.tick(102,{},assets,frame);game.tick(136,{},assets,frame);if(game.hammer_pose()!=0)return 5;
+ game.start(); // An already active game must not reset its timer/state.
+ unsigned now=136;int target=-1;
+ for(int step=0;step<60&&target<0;++step){game.tick(now+=34,{},assets,frame);for(int i=0;i<9;++i)if(game.remaining(i)>0)target=i;}
+ if(target<0)return 6;int row=target/3,col=target%3;
+ if(row!=1){game.tick(now+=34,{row==0,row==2},assets,frame);game.tick(now+=34,{},assets,frame);}
+ if(col!=1){game.tick(now+=34,{false,false,col==0,col==2},assets,frame);game.tick(now+=34,{},assets,frame);}
+ if(game.selected()!=target)return 7;
+ game.tick(now+5,{false,false,false,false,true},assets,frame);game.tick(now+10,{},assets,frame);
+ game.tick(now+=34,{},assets,frame);auto hit=game.tick(now+=34,{},assets,frame);
+ if(game.score()!=1||hit.sounds.size()!=1)return 8;
+ auto finished=game.tick(60000,{},assets,frame);if(!finished.finished||game.active()||game.seconds()!=0)return 9;
+ shin::Stage2Minigame nav;nav.start();nav.tick(0,{},assets,frame);nav.tick(5,{false,false,false,true},assets,frame);nav.tick(10,{},assets,frame);nav.tick(34,{},assets,frame);if(nav.selected()!=5)return 10;
+ std::cout<<"Short strike retained across timing gate, hammer swing/hit and real-time countdown passed\n";
+}

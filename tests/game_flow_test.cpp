@@ -9,9 +9,11 @@ int main(){
  using namespace shin;
  // 421bf0 increments first, then switches phase at exactly 100, returns on 200.
  SplashSequence splash;auto st=splash.update();check(st.palette_phase==0&&st.image_phase==0&&!st.transition,"splash first");
- for(int i=1;i<99;++i)splash.update();st=splash.update();check(st.palette_phase==-1&&st.image_phase==1&&!st.transition,"splash tick 100");
- st=splash.update();check(st.palette_phase==1&&st.image_phase==1,"palette one tick after image switch");
+ for(int i=1;i<99;++i)splash.update();st=splash.update();check(st.palette_phase==1&&st.image_phase==1&&!st.transition,"logo and palette switch atomically at tick 100");
+ st=splash.update();check(st.palette_phase==1&&st.image_phase==1,"black logo retains matching palette");
  for(int i=101;i<199;++i)splash.update();st=splash.update();check(st.transition&&st.image_phase==-1&&splash.finished,"splash tick 200");check(!splash.update().transition,"splash only one transition");
+ SplashSequence atomic;int current_palette=-1;
+ for(int i=0;i<200;++i){auto step=atomic.update();if(step.palette_phase>=0)current_palette=step.palette_phase;if(!step.transition)check(current_palette==step.image_phase,"every splash image uses its matching palette");else check(step.palette_phase==-1,"menu transition does not publish a stale logo palette");}
  check(advance_unlocked_stage(1,0)==1&&advance_unlocked_stage(2,0)==2&&advance_unlocked_stage(1,3)==4,"save monotonic");
  MainMenu m(0);auto mf=m.update(0,{});check(mf.audio.size()==1&&mf.draws.size()==6,"main first draw/audio");
  MenuInput down;down.down=true;mf=m.update(1,down);check(m.selected()==1&&mf.draws[3].resource=="menu_g1.app","main draws before navigation");
