@@ -5,7 +5,8 @@ build="${1:-$root/build/macos-universal}"
 cmake -S "$root" -B "$build" -DCMAKE_BUILD_TYPE=Release -DSHIN_FETCH_SDL=ON '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64' -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
 cmake --build "$build" --config Release --parallel 3 --target shin_portable
 app="$build/platforms/desktop/SHIN.app"
-lipo -verify_arch arm64 x86_64 "$app/Contents/MacOS/SHIN"
+lipo "$app/Contents/MacOS/SHIN" -verify_arch arm64 x86_64
+lipo -archs "$app/Contents/MacOS/SHIN"
 mkdir -p "$app/Contents/Resources/licenses"
 cp "$root/LICENSE" "$app/Contents/Resources/licenses/GPL-3.0.txt"
 cp "$root/src/graphics/gpu/xbrz-freescale.glsl" "$app/Contents/Resources/licenses/xbrz-freescale.glsl"
