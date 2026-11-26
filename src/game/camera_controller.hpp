@@ -20,7 +20,8 @@ inline void plan_normal_camera(SceneCamera&c,PlayerPayload&p,int width,int heigh
  int delta_x=target_x-c.pixel_x;
  int dx=delta_x/6;if(dx==0&&delta_x!=0)dx=delta_x>0?1:-1;
  dx=std::clamp(dx,-16,16);
- const int planned_x=std::clamp(c.pixel_x+dx,0,std::max(0,(width-20)*32));
+ const int safe_x=std::clamp(c.pixel_x+dx,center_x-576,center_x-64);
+ const int planned_x=std::clamp(safe_x,0,std::max(0,(width-20)*32));
  c.offset_x=planned_x-c.tile_x*32;
  auto vertical=[&](int edge){int half=p.at(0x14)/2;
   int dy=(half-c.pixel_y-edge+p.at(12))/6;int center=p.at(12)-c.pixel_y+half;
@@ -33,3 +34,4 @@ inline void plan_normal_camera(SceneCamera&c,PlayerPayload&p,int width,int heigh
  if(c.bottom+c.pixel_y<p.at(12))vertical(c.bottom+p.at(0x14)/2);
 }
 }
+

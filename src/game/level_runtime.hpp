@@ -175,7 +175,7 @@ class LevelRuntime:public PlayerContext,public ProjectileContext,public game::Ob
   int normal=camera_x()-target.origin_x,desired=focus?fit(player.at(8)+player.at(0x10)/2-target.width/2,left,right,target.width,view_right_edge()):normal;unsigned now=now_ms();
   if(scene_pan_width_!=target.width){scene_panning_=false;scene_pan_width_=target.width;}
   if(focus&&!scene_panning_){scene_view_left_=normal;scene_view_top_=camera_y()-target.origin_y;scene_pan_time_=now;scene_panning_=true;}
-  if(!scene_panning_)return;
+  if(!focus){scene_panning_=false;return;}
   unsigned dt=std::min(100u,now-scene_pan_time_);scene_pan_time_=now;double delta=desired-scene_view_left_;double step=delta*(1-std::exp(-double(dt)/220.0));double limit=double(dt)*0.32;scene_view_left_+=std::clamp(step,-limit,limit);
   int desired_top=vertical_focus?fit(camera_y()-target.origin_y,top,bottom,target.height,int(scene_.map.height)*32):camera_y()-target.origin_y;double dy=desired_top-scene_view_top_;scene_view_top_+=std::clamp(dy*(1-std::exp(-double(dt)/220.0)),-limit,limit);target.origin_y=camera_y()-int(std::lround(scene_view_top_));
   if(!focus&&std::abs(desired-scene_view_left_)<0.5&&std::abs(desired_top-scene_view_top_)<0.5){scene_panning_=false;scene_view_left_=desired;}
@@ -554,6 +554,7 @@ public:
  }
 };
 }
+
 
 
 

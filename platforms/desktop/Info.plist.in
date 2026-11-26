@@ -5,8 +5,8 @@
 <key>CFBundleIdentifier</key><string>org.libaichuan.shin-rebuild</string>
 <key>CFBundleName</key><string>蜡笔小新1-重构版</string>
 <key>CFBundleDisplayName</key><string>蜡笔小新1-重构版</string>
-<key>CFBundleVersion</key><string>0.3.26</string>
-<key>CFBundleShortVersionString</key><string>0.3.26</string>
+<key>CFBundleVersion</key><string>0.3.29</string>
+<key>CFBundleShortVersionString</key><string>0.3.29</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>LSMinimumSystemVersion</key><string>11.0</string>

@@ -11,6 +11,10 @@
 #include <thread>
 #include <SDL.h>
 #include <SDL_mixer.h>
+#include "platform/touch_controls.hpp"
+#ifdef SHIN_MOBILE
+#include "platform/mobile_assets.hpp"
+#endif
 #define DR_FLAC_IMPLEMENTATION
 #include "third_party/dr_flac.h"
 #include "platform/flac_wav_stream.hpp"
@@ -74,27 +78,47 @@ public:
 
 };
 static void startup_log(const char*phase,const char*detail="")noexcept{try{std::ofstream out(save_root/"startup.log",std::ios::app);out<<phase<<" "<<detail<<"\n";}catch(...){}}
+#if defined(__ANDROID__)
+extern "C" __attribute__((visibility("default"))) int SDL_main(int argc,char**argv){
+#elif defined(SHIN_HARMONY)
+int shin_mobile_run(int argc,char**argv){
+#else
 int main(int argc,char**argv){
+#endif
  SDL_SetMainReady();bool windowed=false,fresh=false,verify=false;int initial_stage=-1,boss_stage=-1,limit=0;std::string initial_scene="splash";
  char*base=SDL_GetBasePath();fs::path app_dir=base?fs::path(base):fs::current_path();SDL_free(base);data_root=app_dir/"assets";
  if(!fs::exists(data_root/"RESOURCE.RES")&&fs::exists(app_dir.parent_path()/"Resources/assets/RESOURCE.RES"))data_root=app_dir.parent_path()/"Resources/assets";
  char*pref=SDL_GetPrefPath("libaichuan","shin-rebuild");save_root=pref?fs::path(pref):app_dir/"saves";SDL_free(pref);std::error_code ec;fs::create_directories(save_root,ec);
- try{for(int i=1;i<argc;++i){std::string arg=argv[i];if(arg=="--help"){std::cout<<"SHIN 0.3.26: --assets PATH --windowed --fresh-start --stage 1..7 --boss-stage 1..7 --scene menu --frames N --verify-assets\n";return 0;}else if(arg=="--assets"&&i+1<argc){data_root=fs::absolute(argv[++i]);if(data_root.extension()==".RES"||data_root.extension()==".res")data_root=data_root.parent_path();}else if(arg=="--windowed")windowed=true;else if(arg=="--fresh-start")fresh=true;else if(arg=="--verify-assets")verify=true;else if(arg=="--stage"&&i+1<argc)initial_stage=std::stoi(argv[++i])-1;else if(arg=="--boss-stage"&&i+1<argc)boss_stage=std::stoi(argv[++i])-1;else if(arg=="--scene"&&i+1<argc)initial_scene=argv[++i];else if(arg=="--frames"&&i+1<argc)limit=std::stoi(argv[++i]);else throw std::runtime_error("Unknown argument: "+arg);}if(initial_stage < -1||initial_stage>6||boss_stage < -1||boss_stage>6)throw std::runtime_error("stage must be 1..7");if(initial_stage>=0||boss_stage>=0)fresh=true;if(verify){shin::AssetStore test((data_root/"RESOURCE.RES").string());test.preload_all_images();std::cout<<"Asset decoding OK\n";return 0;}}catch(const std::exception&e){std::cerr<<e.what()<<"\n";return 1;}
+ try{
+#ifdef SHIN_MOBILE
+ data_root=save_root/"assets";shin::install_mobile_assets(data_root);
+#endif
+ for(int i=1;i<argc;++i){std::string arg=argv[i];if(arg=="--help"){std::cout<<"SHIN 0.3.29: --assets PATH --windowed --fresh-start --stage 1..7 --boss-stage 1..7 --scene menu --frames N --verify-assets\n";return 0;}else if(arg=="--assets"&&i+1<argc){data_root=fs::absolute(argv[++i]);if(data_root.extension()==".RES"||data_root.extension()==".res")data_root=data_root.parent_path();}else if(arg=="--windowed")windowed=true;else if(arg=="--fresh-start")fresh=true;else if(arg=="--verify-assets")verify=true;else if(arg=="--stage"&&i+1<argc)initial_stage=std::stoi(argv[++i])-1;else if(arg=="--boss-stage"&&i+1<argc)boss_stage=std::stoi(argv[++i])-1;else if(arg=="--scene"&&i+1<argc)initial_scene=argv[++i];else if(arg=="--frames"&&i+1<argc)limit=std::stoi(argv[++i]);else throw std::runtime_error("Unknown argument: "+arg);}if(initial_stage < -1||initial_stage>6||boss_stage < -1||boss_stage>6)throw std::runtime_error("stage must be 1..7");if(initial_stage>=0||boss_stage>=0)fresh=true;if(verify){shin::AssetStore test((data_root/"RESOURCE.RES").string());test.preload_all_images();std::cout<<"Asset decoding OK\n";return 0;}}catch(const std::exception&e){std::cerr<<e.what()<<"\n";return 1;}
 
  SDL_Window*w=nullptr;SDL_Renderer*r=nullptr;SDL_GLContext gpu_context=nullptr;
- startup_log("=== SHIN 0.3.26 startup ===");
+ startup_log("=== SHIN 0.3.29 startup ===");
  try{
  SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED,"0");if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_GAMECONTROLLER)!=0)throw std::runtime_error(SDL_GetError());
  startup_log("sdl_ready");Mix_Init(0);if(Mix_OpenAudio(48000,AUDIO_S16SYS,2,2048)!=0)throw std::runtime_error(Mix_GetError());Mix_AllocateChannels(32);Mix_VolumeMusic(96);startup_log("audio_ready");
  SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY,"0");
  int display_width=1280,display_height=720;
  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,3);SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,
+#ifdef SHIN_GLES
+0
+#else
 #ifdef __APPLE__
 2
 #else
 3
 #endif
-);SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_CORE);SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
+#endif
+);SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,
+#ifdef SHIN_GLES
+SDL_GL_CONTEXT_PROFILE_ES
+#else
+SDL_GL_CONTEXT_PROFILE_CORE
+#endif
+);SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
  w=SDL_CreateWindow("蜡笔小新1-重构版",0,0,display_width,display_height,SDL_WINDOW_SHOWN|SDL_WINDOW_OPENGL|SDL_WINDOW_ALLOW_HIGHDPI|SDL_WINDOW_RESIZABLE|(windowed?0:SDL_WINDOW_FULLSCREEN_DESKTOP));if(!w)throw std::runtime_error(SDL_GetError());gpu_context=SDL_GL_CreateContext(w);if(!gpu_context)throw std::runtime_error(SDL_GetError());if(SDL_GL_MakeCurrent(w,gpu_context)!=0)throw std::runtime_error(SDL_GetError());bool vsync=SDL_GL_SetSwapInterval(1)==0&&SDL_GL_GetSwapInterval()==1;startup_log("vsync",vsync?"1":"0");SDL_GL_GetDrawableSize(w,&display_width,&display_height);
  auto gpu=std::make_unique<shin::GpuPresenter>([](const char*name){return SDL_GL_GetProcAddress(name);});startup_log("gpu_renderer",gpu->renderer().c_str());
  shin::load_game_rules((save_root/"gameplay.ini"));
@@ -103,7 +127,7 @@ int main(int argc,char**argv){
  std::vector<uint32_t>rgba(frame.pixels.size());startup_log("archive_and_texture_ready");shin::loading_task([&]{assets.preload_all_images();},loading_pump);startup_log("images_cached");
  auto dedication=std::make_unique<shin::DedicationSplash>((data_root/"overrides/dedication.rgba"));shin::IndexedSurface dedication_frame(display_width,display_height);bool dedication_active=false;
  int display_filter=0;unsigned filter_notice_until=0;
- SDL_GameController*controller=nullptr;for(int i=0;i<SDL_NumJoysticks();++i)if(SDL_IsGameController(i)){controller=SDL_GameControllerOpen(i);break;}bool trigger_held=false;shin::InputState input;
+ SDL_GameController*controller=nullptr;for(int i=0;i<SDL_NumJoysticks();++i)if(SDL_IsGameController(i)){controller=SDL_GameControllerOpen(i);break;}bool trigger_held=false;shin::InputState input;shin::TouchControls touch;bool touch_filter_held=false,background=false;uint32_t last_touch_mask=~uint32_t(0);std::vector<uint32_t>touch_pixels;
  std::unique_ptr<shin::LevelRuntime>level;std::unique_ptr<shin::StageIntro>intro;unsigned stage=0;shin::SplashSequence splash;bool starting=true;bool standalone_bonus=false,quit=false,selecting=false,main_menu=true,option_menu=false;shin::MainMenu menu(SDL_GetTicks());shin::OptionMenu options;shin::SpeedConfig speed;int scrolling=0;std::unique_ptr<shin::SettingsMenu> settings;const std::filesystem::path progress_path=(save_root/"progress.dat");shin::ProgressSave progress;if(!fresh)progress.load(progress_path);shin::StageSelect select(progress.stages,progress.bonus);
  bool save_pending=false;auto save_progress=[&]{std::string error;save_pending=!progress.try_save(progress_path,error);if(save_pending)startup_log("SAVE_WARNING",error.c_str());};
  startup_log("progress_and_menu_ready");
@@ -114,11 +138,20 @@ int main(int argc,char**argv){
  auto back_menu=[&](){frame=shin::IndexedSurface(view.logical_width,view.logical_height);frame.origin_x=view.origin_x;frame.origin_y=view.origin_y;main_menu=true;selecting=false;option_menu=false;settings.reset();intro.reset();menu=shin::MainMenu(SDL_GetTicks());palette=assets.palette(shin::MainMenu::palette());audio.music(2);};
  if(initial_scene=="menu"){starting=false;back_menu();}if(initial_stage>=0||boss_stage>=0){starting=false;main_menu=false;start(unsigned(boss_stage>=0?boss_stage:initial_stage));if(boss_stage>=0){intro.reset();level->debug_boss_entry(10);}}
  while(!quit){frame.origin_x=view.origin_x;frame.origin_y=view.origin_y;uint64_t began=SDL_GetPerformanceCounter();bool filter_pressed=false,escape=false;SDL_Event event;
- while(SDL_PollEvent(&event)){if(event.type==SDL_QUIT)quit=true;if(event.type==SDL_KEYDOWN&&!event.key.repeat){if(event.key.keysym.sym==SDLK_F10)filter_pressed=true;if(event.key.keysym.sym==SDLK_F11)SDL_SetWindowFullscreen(w,(SDL_GetWindowFlags(w)&SDL_WINDOW_FULLSCREEN_DESKTOP)?0:SDL_WINDOW_FULLSCREEN_DESKTOP);if(event.key.keysym.sym==SDLK_ESCAPE)escape=true;}if(event.type==SDL_CONTROLLERDEVICEADDED&&!controller)controller=SDL_GameControllerOpen(event.cdevice.which);}
+ while(SDL_PollEvent(&event)){
+#ifdef SHIN_MOBILE
+ if(event.type==SDL_FINGERDOWN||event.type==SDL_FINGERMOTION||event.type==SDL_FINGERUP)touch.finger(event.tfinger.fingerId,event.tfinger.x,event.tfinger.y,event.type!=SDL_FINGERUP);
+ if(event.type==SDL_APP_WILLENTERBACKGROUND){background=true;touch.clear();input.message(0x1c,0);Mix_Pause(-1);Mix_PauseMusic();}
+ if(event.type==SDL_APP_DIDENTERFOREGROUND){background=false;touch.clear();update_clock.reset();Mix_Resume(-1);Mix_ResumeMusic();}
+ if(event.type==SDL_WINDOWEVENT&&event.window.event==SDL_WINDOWEVENT_FOCUS_LOST)touch.clear();
+#endif
+if(event.type==SDL_QUIT)quit=true;if(event.type==SDL_KEYDOWN&&!event.key.repeat){if(event.key.keysym.sym==SDLK_F10)filter_pressed=true;if(event.key.keysym.sym==SDLK_F11)SDL_SetWindowFullscreen(w,(SDL_GetWindowFlags(w)&SDL_WINDOW_FULLSCREEN_DESKTOP)?0:SDL_WINDOW_FULLSCREEN_DESKTOP);if(event.key.keysym.sym==SDLK_ESCAPE)escape=true;}if(event.type==SDL_CONTROLLERDEVICEADDED&&!controller)controller=SDL_GameControllerOpen(event.cdevice.which);}
  if(controller&&!SDL_GameControllerGetAttached(controller)){SDL_GameControllerClose(controller);controller=nullptr;}
+ if(background){SDL_Delay(20);continue;}
  auto keys=SDL_GetKeyboardState(nullptr);auto button=[&](SDL_GameControllerButton b){return controller&&SDL_GameControllerGetButton(controller,b);};auto axis=[&](SDL_GameControllerAxis a){return controller?SDL_GameControllerGetAxis(controller,a):0;};bool in_minigame=level&&level->subgame_active();bool menus=main_menu||option_menu||settings||selecting;
- auto key=[&](unsigned vk,bool held){input.message(held?0x100:0x101,vk);};key(37,keys[SDL_SCANCODE_LEFT]||button(SDL_CONTROLLER_BUTTON_DPAD_LEFT)||axis(SDL_CONTROLLER_AXIS_LEFTX)<-16000);key(39,keys[SDL_SCANCODE_RIGHT]||button(SDL_CONTROLLER_BUTTON_DPAD_RIGHT)||axis(SDL_CONTROLLER_AXIS_LEFTX)>16000);key(38,keys[SDL_SCANCODE_UP]||button(SDL_CONTROLLER_BUTTON_DPAD_UP)||axis(SDL_CONTROLLER_AXIS_LEFTY)<-16000||(!menus&&!in_minigame&&button(SDL_CONTROLLER_BUTTON_B)));key(40,keys[SDL_SCANCODE_DOWN]||button(SDL_CONTROLLER_BUTTON_DPAD_DOWN)||axis(SDL_CONTROLLER_AXIS_LEFTY)>16000);key(32,keys[SDL_SCANCODE_SPACE]||button(SDL_CONTROLLER_BUTTON_Y)||((intro||in_minigame)&&button(SDL_CONTROLLER_BUTTON_A)));key(13,keys[SDL_SCANCODE_RETURN]||button(SDL_CONTROLLER_BUTTON_START)||(menus&&button(SDL_CONTROLLER_BUTTON_A)));key(27,keys[SDL_SCANCODE_ESCAPE]);key(117,keys[SDL_SCANCODE_F6]||(in_minigame&&button(SDL_CONTROLLER_BUTTON_X)));input.active=(SDL_GetWindowFlags(w)&SDL_WINDOW_INPUT_FOCUS)!=0;
- bool trigger=axis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT)>16000;if(filter_pressed||(trigger&&!trigger_held)){display_filter=(display_filter+1)%3;filter_notice_until=SDL_GetTicks()+2500;}trigger_held=trigger;if(main_menu&&escape)back_menu();
+ auto key=[&](unsigned vk,bool held){input.message((held||touch.held(vk))?0x100:0x101,vk);};key(37,keys[SDL_SCANCODE_LEFT]||button(SDL_CONTROLLER_BUTTON_DPAD_LEFT)||axis(SDL_CONTROLLER_AXIS_LEFTX)<-16000);key(39,keys[SDL_SCANCODE_RIGHT]||button(SDL_CONTROLLER_BUTTON_DPAD_RIGHT)||axis(SDL_CONTROLLER_AXIS_LEFTX)>16000);key(38,keys[SDL_SCANCODE_UP]||button(SDL_CONTROLLER_BUTTON_DPAD_UP)||axis(SDL_CONTROLLER_AXIS_LEFTY)<-16000||(!menus&&!in_minigame&&button(SDL_CONTROLLER_BUTTON_B)));key(40,keys[SDL_SCANCODE_DOWN]||button(SDL_CONTROLLER_BUTTON_DPAD_DOWN)||axis(SDL_CONTROLLER_AXIS_LEFTY)>16000);key(32,keys[SDL_SCANCODE_SPACE]||button(SDL_CONTROLLER_BUTTON_Y)||((intro||in_minigame)&&button(SDL_CONTROLLER_BUTTON_A)));key(13,keys[SDL_SCANCODE_RETURN]||button(SDL_CONTROLLER_BUTTON_START)||(menus&&button(SDL_CONTROLLER_BUTTON_A)));key(27,keys[SDL_SCANCODE_ESCAPE]);for(unsigned k=112;k<=116;++k)key(k,false);key(117,keys[SDL_SCANCODE_F6]||(in_minigame&&button(SDL_CONTROLLER_BUTTON_X)));input.active=(SDL_GetWindowFlags(w)&SDL_WINDOW_INPUT_FOCUS)!=0;
+ escape=escape||touch.held(27);bool tf=touch.held(121);if(tf&&!touch_filter_held)filter_pressed=true;touch_filter_held=tf;
+ bool trigger=axis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT)>16000;if(filter_pressed||(trigger&&!trigger_held)){display_filter=(display_filter+1)%3;filter_notice_until=SDL_GetTicks()+2500;}trigger_held=trigger;if(starting)escape=false;else if(escape&&!main_menu&&!option_menu&&!settings&&!selecting){intro.reset();standalone_bonus=false;back_menu();input.message(0x101,27);escape=false;}else if(main_menu&&escape)back_menu();
  auto draw=[&](const auto&draws){frame.origin_x=view.origin_x;frame.origin_y=view.origin_y;frame.clip_core=false;frame.border_rgb.clear();frame.clear();for(const auto&d:draws)frame.blit(assets.image(d.resource),d.x,d.y,d.color_key);};bool up=input.read(0x46d4b0),down=input.read(0x46d4b4),enter=input.read(0x46d4ec);
  const bool gameplay=!starting&&!main_menu&&!selecting&&!option_menu&&!settings&&!intro&&level&&!level->paused()&&!level->game_over();
  auto elapsed_ns=std::int64_t(double(SDL_GetPerformanceCounter()-clock_start)*1000000000.0/SDL_GetPerformanceFrequency());
@@ -136,7 +169,11 @@ int main(int argc,char**argv){
  Mix_VolumeMusic(!main_menu&&!selecting&&level&&(intro||level->cinematic_active())?64:96);
  const char*filter_names[]={"1/3 GPU NEAREST","2/3 GPU BILINEAR","3/3 GPU XBRZ"};const char*notice=SDL_GetTicks()<filter_notice_until?filter_names[display_filter]:nullptr;int output_w=0,output_h=0;SDL_GL_GetDrawableSize(w,&output_w,&output_h);
  if(dedication_active)gpu->draw(dedication_frame.border_rgb.data(),dedication_frame.width,dedication_frame.height,output_w,output_h,0,notice);
- else {for(size_t i=0;i<rgba.size();++i)rgba[i]=frame.border_rgb.empty()?0xff000000u|palette[frame.pixels[i]]:frame.border_rgb[i]?frame.border_rgb[i]:0xff000000u|palette[frame.pixels[i]];gpu->draw(rgba.data(),frame.width,frame.height,output_w,output_h,display_filter,notice);}SDL_GL_SwapWindow(w);++tick;if(limit>0&&tick>=unsigned(limit))quit=true;
+ else {for(size_t i=0;i<rgba.size();++i)rgba[i]=frame.border_rgb.empty()?0xff000000u|palette[frame.pixels[i]]:frame.border_rgb[i]?frame.border_rgb[i]:0xff000000u|palette[frame.pixels[i]];gpu->draw(rgba.data(),frame.width,frame.height,output_w,output_h,display_filter,notice);}
+#ifdef SHIN_MOBILE
+ auto mask=touch.state_mask();bool touch_changed=mask!=last_touch_mask;if(touch_changed){touch_pixels=touch.pixels();last_touch_mask=mask;}gpu->overlay(touch_pixels.data(),960,540,output_w,output_h,touch_changed);
+#endif
+ SDL_GL_SwapWindow(w);++tick;if(limit>0&&tick>=unsigned(limit))quit=true;
 
  double elapsed=double(SDL_GetPerformanceCounter()-began)*1000/SDL_GetPerformanceFrequency();if(!vsync&&elapsed<16.0)SDL_Delay(unsigned(16.0-elapsed));
  }
@@ -145,3 +182,4 @@ int main(int argc,char**argv){
  }catch(const std::exception&e){startup_log("ERROR",e.what());std::cerr<<e.what()<<"\n";if(gpu_context)SDL_GL_DeleteContext(gpu_context);if(w)SDL_DestroyWindow(w);Mix_CloseAudio();Mix_Quit();SDL_Quit();return 1;}
  if(w)SDL_DestroyWindow(w);Mix_CloseAudio();Mix_Quit();SDL_Quit();return 0;
 }
+
